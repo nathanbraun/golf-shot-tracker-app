@@ -15,12 +15,12 @@ The Golf Shot Tracker App is a React-based web application designed to track and
 
 ## File Structure
 
-```
+\`\`\`
 /app                 - Next.js app directory with pages
 /components          - UI components
 /hooks               - Custom React hooks
 /lib                 - Utility functions and API clients
-```
+\`\`\`
 
 ## Key Components
 
@@ -132,4 +132,3 @@ The app uses Supabase as its backend with the following tables:
 ## Conclusion
 
 The Golf Shot Tracker App is a comprehensive tool for tracking and analyzing golf scramble tournaments. It provides detailed shot tracking, team management, and statistical analysis features with both online and offline capabilities. The codebase is organized around React components and hooks, with Supabase providing the backend data storage and API.
-
