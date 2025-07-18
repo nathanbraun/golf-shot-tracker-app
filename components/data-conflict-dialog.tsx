@@ -94,38 +94,38 @@ export default function DataConflictDialog({
             </Card>
 
             {/* Action Options */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="text-sm font-medium text-center text-gray-700">What would you like to do?</div>
 
               <Button
                 onClick={onContinue}
-                className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2 h-12"
+                className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-3 h-14 text-lg"
               >
-                <Play className="w-5 h-5" />
+                <Play className="w-6 h-6" />
                 <div className="text-left">
                   <div className="font-medium">Continue Playing</div>
-                  <div className="text-xs text-green-100">Pick up where you left off</div>
+                  <div className="text-sm text-green-100">Pick up where you left off</div>
                 </div>
               </Button>
 
               <Button
                 onClick={onRestart}
                 variant="outline"
-                className="w-full border-red-200 text-red-700 hover:bg-red-50 flex items-center justify-center gap-2 h-12 bg-transparent"
+                className="w-full border-red-200 text-red-700 hover:bg-red-50 flex items-center justify-center gap-3 h-14 text-lg bg-transparent"
               >
-                <RotateCcw className="w-5 h-5" />
+                <RotateCcw className="w-6 h-6" />
                 <div className="text-left">
                   <div className="font-medium">Start Over</div>
-                  <div className="text-xs text-red-600">Delete existing data and restart</div>
+                  <div className="text-sm text-red-600">Delete existing data and restart</div>
                 </div>
               </Button>
 
               <Button
                 onClick={onCancel}
                 variant="ghost"
-                className="w-full text-gray-600 hover:bg-gray-100 flex items-center justify-center gap-2"
+                className="w-full text-gray-600 hover:bg-gray-100 flex items-center justify-center gap-2 h-12 text-base"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
                 Cancel
               </Button>
             </div>
