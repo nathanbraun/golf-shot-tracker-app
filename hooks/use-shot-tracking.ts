@@ -1,63 +1,52 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { useState, useEffect } from "react"
+import {
+  shotsApi,
+  holeCompletionsApi,
+  playersApi,
+  roundsApi,
+  teamsApi,
+  coursesApi,
+  type Player,
+  type Round,
+  type Team,
+  type CourseHole,
+} from "@/lib/supabase"
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+const GIMME_DISTANCE = 3 // feet
 
-interface Player {
-  id: string
-  name: string
-  email?: string
-}
-
-interface Team {
-  id: string
-  name: string
-  players: Player[]
-}
-
-interface Course {
-  id: string
-  name: string
-  holes: CourseHole[]
-}
-
-interface CourseHole {
-  id: string
-  hole_number: number
-  par: number
-  distance_yards: number
-}
-
-interface Round {
-  id: string
-  name: string
-  date: string
-  course?: Course
-  teams: Team[]
-}
-
-interface Shot {
+// Local shot interface for the UI
+interface LocalShot {
   id: string
   hole: number
+  par: number
   shotNumber: number
   player: string
   shotType: string
   startDistance: number
   endDistance: number
   calculatedDistance: number
-  par: number
+  made: boolean
   isNut: boolean
   isClutch: boolean
-  isGimme: boolean
-  timestamp: string
+  isGimme: boolean // NEW: Track if this is a gimme shot
+  timestamp: Date
 }
 
-interface RecoveryData {
-  roundId: string
-  teamId: string
-  playerId: string
+// Data conflict resolution options
+type DataConflictAction = "continue" | "restart" | "cancel"
+
+interface ExistingDataInfo {
+  totalShots: number
+  completedHoles: number[]
+  lastHole: number
+  lastShotNumber: number
+  lastActivity: Date
+}
+
+// Recovery data for refresh detection
+interface RefreshRecoveryData {
   roundName: string
   teamName: string
   playerName: string
@@ -66,402 +55,602 @@ interface RecoveryData {
   lastActivity: string
 }
 
-const RECOVERY_KEY = "golf_tracker_recovery"
-
 export function useShotTracking() {
-  // Core state
+  // Startup state
+  const [isSetupComplete, setIsSetupComplete] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null)
   const [selectedRound, setSelectedRound] = useState<Round | null>(null)
+
+  // Data conflict handling
+  const [showDataConflictDialog, setShowDataConflictDialog] = useState(false)
+  const [existingDataInfo, setExistingDataInfo] = useState<ExistingDataInfo | null>(null)
+  const [conflictAction, setConflictAction] = useState<DataConflictAction | null>(null)
+
+  // Refresh recovery handling
+  const [showRefreshRecovery, setShowRefreshRecovery] = useState(false)
+  const [refreshRecoveryData, setRefreshRecoveryData] = useState<RefreshRecoveryData | null>(null)
+
+  // Course data from database
   const [courseHoles, setCourseHoles] = useState<CourseHole[]>([])
   const [loadingCourseData, setLoadingCourseData] = useState(false)
 
-  // UI state
+  // Startup data
+  const [players, setPlayers] = useState<Player[]>([])
+  const [rounds, setRounds] = useState<Round[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
+  const [loadingStartup, setLoadingStartup] = useState(true)
+
   const [currentView, setCurrentView] = useState<
-    "setup" | "tracking" | "summary" | "courses" | "feed" | "shot-edit" | "recovery"
-  >("setup")
-  const [currentDistance, setCurrentDistance] = useState("")
-  const [selectedPlayerName, setSelectedPlayerName] = useState("")
-  const [selectedShotType, setShotType] = useState("")
-  const [shots, setShots] = useState<Shot[]>([])
+    "tracking" | "summary" | "courses" | "shot-edit" | "supabase-test" | "admin" | "feed"
+  >("tracking")
+  const [currentDistance, setCurrentDistance] = useState<string>("")
+  const [selectedPlayerName, setSelectedPlayerName] = useState<string>("")
+  const [selectedShotType, setShotType] = useState<string>("")
+  const [shots, setShots] = useState<LocalShot[]>([])
   const [lastDistance, setLastDistance] = useState<number | null>(null)
   const [isRecordingShot, setIsRecordingShot] = useState(false)
   const [showSplashScreen, setShowSplashScreen] = useState(false)
-  const [currentHole, setCurrentHole] = useState(1)
-  const [currentPar, setCurrentPar] = useState(4)
-  const [currentShotNumber, setCurrentShotNumber] = useState(1)
-  const [distanceUnit, setDistanceUnit] = useState<"yards" | "ft">("yards")
-  const [useSlider, setUseSlider] = useState(false)
+  const [currentHole, setCurrentHole] = useState<number>(1)
+  const [currentPar, setCurrentPar] = useState<number>(4)
+  const [currentShotNumber, setCurrentShotNumber] = useState<number>(1)
+  const [distanceUnit, setDistanceUnit] = useState<"yards" | "feet">("yards")
+  const [useSlider, setUseSlider] = useState(true)
   const [isNut, setIsNut] = useState(false)
   const [isClutch, setIsClutch] = useState(false)
   const [showMoreOptions, setShowMoreOptions] = useState(false)
   const [showHoleSummary, setShowHoleSummary] = useState(false)
-  const [editingShot, setEditingShot] = useState<Shot | null>(null)
-  const [editStartDistance, setEditStartDistance] = useState("")
-  const [editEndDistance, setEditEndDistance] = useState("")
+
+  // Shot editing state
+  const [editingShot, setEditingShot] = useState<LocalShot | null>(null)
+  const [editStartDistance, setEditStartDistance] = useState<string>("")
+  const [editEndDistance, setEditEndDistance] = useState<string>("")
+
   const [isSyncing, setIsSyncing] = useState(false)
-  const [recoveryData, setRecoveryData] = useState<RecoveryData | null>(null)
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
+  const [pendingShots, setPendingShots] = useState<LocalShot[]>([]) // For offline support
 
-  // Check for recovery data on mount
-  useEffect(() => {
-    const checkRecoveryData = async () => {
+  // Local storage keys
+  const STORAGE_KEYS = {
+    ROUND_ID: "golf_tracker_round_id",
+    TEAM_ID: "golf_tracker_team_id",
+    PLAYER_ID: "golf_tracker_player_id",
+    LAST_ACTIVITY: "golf_tracker_last_activity",
+  }
+
+  // Save tracking state to localStorage
+  const saveTrackingState = () => {
+    if (selectedRound && selectedTeam && selectedPlayer) {
+      localStorage.setItem(STORAGE_KEYS.ROUND_ID, selectedRound.id)
+      localStorage.setItem(STORAGE_KEYS.TEAM_ID, selectedTeam.id)
+      localStorage.setItem(STORAGE_KEYS.PLAYER_ID, selectedPlayer.id)
+      localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, new Date().toISOString())
+    }
+  }
+
+  // Clear tracking state from localStorage
+  const clearTrackingState = () => {
+    Object.values(STORAGE_KEYS).forEach((key) => {
+      localStorage.removeItem(key)
+    })
+  }
+
+  // Check for existing tracking state on load
+  const checkForRefreshRecovery = async () => {
+    const roundId = localStorage.getItem(STORAGE_KEYS.ROUND_ID)
+    const teamId = localStorage.getItem(STORAGE_KEYS.TEAM_ID)
+    const playerId = localStorage.getItem(STORAGE_KEYS.PLAYER_ID)
+    const lastActivity = localStorage.getItem(STORAGE_KEYS.LAST_ACTIVITY)
+
+    if (roundId && teamId && playerId && lastActivity) {
       try {
-        const stored = localStorage.getItem(RECOVERY_KEY)
-        if (!stored) return
+        // Load the data to verify it still exists
+        const [roundsData, playersData] = await Promise.all([roundsApi.getRounds(), playersApi.getPlayers()])
 
-        const data: RecoveryData = JSON.parse(stored)
+        const round = roundsData.find((r) => r.id === roundId)
+        const player = playersData.find((p) => p.id === playerId)
 
-        // Validate that the data is still valid (round/team/player exist)
-        const { data: round } = await supabase
-          .from("rounds")
-          .select(`
-            *,
-            course:courses(*),
-            teams:round_teams(
-              team:teams(
-                *,
-                players:team_players(
-                  player:players(*)
-                )
-              )
-            )
-          `)
-          .eq("id", data.roundId)
-          .single()
+        if (round && player) {
+          const teamsData = await teamsApi.getTeamsByRound(roundId)
+          const team = teamsData.find((t) => t.id === teamId)
 
-        if (round) {
-          const team = round.teams?.find((t: any) => t.team.id === data.teamId)
-          const player = team?.team.players?.find((p: any) => p.player.id === data.playerId)
+          if (team) {
+            // Check if there are any shots for this team/round
+            const existingShots = await shotsApi.getShotsByTeamAndRound(teamId, roundId)
 
-          if (team && player) {
-            setRecoveryData(data)
-            setCurrentView("recovery")
-            return
-          }
-        }
+            if (existingShots.length > 0) {
+              const lastActivityDate = new Date(lastActivity)
+              const timeSinceLastActivity = Date.now() - lastActivityDate.getTime()
+              const hoursAgo = Math.floor(timeSinceLastActivity / (1000 * 60 * 60))
 
-        // If validation fails, clear the recovery data
-        localStorage.removeItem(RECOVERY_KEY)
-      } catch (error) {
-        console.error("Error checking recovery data:", error)
-        localStorage.removeItem(RECOVERY_KEY)
-      }
-    }
+              let lastActivityText = "Just now"
+              if (hoursAgo >= 24) {
+                const daysAgo = Math.floor(hoursAgo / 24)
+                lastActivityText = `${daysAgo} day${daysAgo > 1 ? "s" : ""} ago`
+              } else if (hoursAgo >= 1) {
+                lastActivityText = `${hoursAgo} hour${hoursAgo > 1 ? "s" : ""} ago`
+              } else {
+                const minutesAgo = Math.floor(timeSinceLastActivity / (1000 * 60))
+                if (minutesAgo >= 1) {
+                  lastActivityText = `${minutesAgo} minute${minutesAgo > 1 ? "s" : ""} ago`
+                }
+              }
 
-    checkRecoveryData()
-  }, [])
+              const completedHoles = [...new Set(existingShots.map((shot) => shot.hole_number))]
+              const currentHole = Math.max(...completedHoles)
 
-  // Save recovery data whenever key state changes
-  const saveRecoveryData = useCallback(() => {
-    if (selectedRound && selectedTeam && selectedPlayer && currentView === "tracking") {
-      const recoveryData: RecoveryData = {
-        roundId: selectedRound.id,
-        teamId: selectedTeam.id,
-        playerId: selectedPlayer.id,
-        roundName: selectedRound.name,
-        teamName: selectedTeam.name,
-        playerName: selectedPlayer.name,
-        currentHole,
-        totalShots: shots.length,
-        lastActivity: new Date().toISOString(),
-      }
-      localStorage.setItem(RECOVERY_KEY, JSON.stringify(recoveryData))
-    }
-  }, [selectedRound, selectedTeam, selectedPlayer, currentView, currentHole, shots.length])
+              setRefreshRecoveryData({
+                roundName: round.name,
+                teamName: team.name,
+                playerName: player.name,
+                currentHole,
+                totalShots: existingShots.length,
+                lastActivity: lastActivityText,
+              })
 
-  // Save recovery data when shots change
-  useEffect(() => {
-    saveRecoveryData()
-  }, [saveRecoveryData])
+              // Store the selections for potential recovery
+              setSelectedRound(round)
+              setSelectedTeam(team)
+              setSelectedPlayer(player)
 
-  const handleContinueFromRecovery = async () => {
-    if (!recoveryData) return
-
-    try {
-      // Load the round data
-      const { data: round } = await supabase
-        .from("rounds")
-        .select(`
-          *,
-          course:courses(*),
-          teams:round_teams(
-            team:teams(
-              *,
-              players:team_players(
-                player:players(*)
-              )
-            )
-          )
-        `)
-        .eq("id", recoveryData.roundId)
-        .single()
-
-      if (round) {
-        setSelectedRound(round)
-
-        const team = round.teams?.find((t: any) => t.team.id === recoveryData.teamId)
-        if (team) {
-          setSelectedTeam(team.team)
-
-          const player = team.team.players?.find((p: any) => p.player.id === recoveryData.playerId)
-          if (player) {
-            setSelectedPlayer(player.player)
-            setSelectedPlayerName(player.player.name)
-          }
-        }
-
-        // Load course data if available
-        if (round.course) {
-          setLoadingCourseData(true)
-          const { data: holes } = await supabase
-            .from("course_holes")
-            .select("*")
-            .eq("course_id", round.course.id)
-            .order("hole_number")
-
-          if (holes) {
-            setCourseHoles(holes)
-            const currentHoleData = holes.find((h) => h.hole_number === recoveryData.currentHole)
-            if (currentHoleData) {
-              setCurrentPar(currentHoleData.par)
+              setShowRefreshRecovery(true)
+              return true // Found recovery data
             }
           }
-          setLoadingCourseData(false)
         }
-
-        // Load existing shots
-        const { data: existingShots } = await supabase
-          .from("shots")
-          .select("*")
-          .eq("round_id", recoveryData.roundId)
-          .eq("team_id", recoveryData.teamId)
-          .order("hole", { ascending: true })
-          .order("shot_number", { ascending: true })
-
-        if (existingShots) {
-          const formattedShots = existingShots.map((shot) => ({
-            id: shot.id,
-            hole: shot.hole,
-            shotNumber: shot.shot_number,
-            player: shot.player_name,
-            shotType: shot.shot_type,
-            startDistance: shot.start_distance,
-            endDistance: shot.end_distance,
-            calculatedDistance: shot.calculated_distance,
-            par: shot.par,
-            isNut: shot.is_nut || false,
-            isClutch: shot.is_clutch || false,
-            isGimme: shot.is_gimme || false,
-            timestamp: shot.created_at,
-          }))
-          setShots(formattedShots)
-
-          // Set current hole and shot number
-          setCurrentHole(recoveryData.currentHole)
-          const holeShots = formattedShots.filter((s) => s.hole === recoveryData.currentHole)
-          setCurrentShotNumber(holeShots.length + 1)
-
-          if (holeShots.length > 0) {
-            const lastShot = holeShots[holeShots.length - 1]
-            setLastDistance(lastShot.endDistance)
-            setIsRecordingShot(lastShot.endDistance > 0)
-          }
-        }
-
-        setCurrentView("tracking")
-        setRecoveryData(null)
+      } catch (error) {
+        console.error("Error checking for refresh recovery:", error)
       }
-    } catch (error) {
-      console.error("Error continuing from recovery:", error)
-      handleStartOverFromRecovery()
     }
+
+    // Clear invalid/old data
+    clearTrackingState()
+    return false // No recovery data found
   }
 
-  const handleStartOverFromRecovery = () => {
-    localStorage.removeItem(RECOVERY_KEY)
-    setRecoveryData(null)
-    setCurrentView("setup")
-    // Reset all state
-    setSelectedPlayer(null)
-    setSelectedTeam(null)
-    setSelectedRound(null)
-    setShots([])
-    setCurrentHole(1)
-    setCurrentShotNumber(1)
-    setLastDistance(null)
-    setIsRecordingShot(false)
-  }
-
-  const loadShotsFromSupabase = async () => {
-    if (!selectedRound || !selectedTeam) return
-
-    try {
-      setIsSyncing(true)
-      const { data: existingShots, error } = await supabase
-        .from("shots")
-        .select("*")
-        .eq("round_id", selectedRound.id)
-        .eq("team_id", selectedTeam.id)
-        .order("hole", { ascending: true })
-        .order("shot_number", { ascending: true })
-
-      if (error) throw error
-
-      if (existingShots) {
-        const formattedShots = existingShots.map((shot) => ({
-          id: shot.id,
-          hole: shot.hole,
-          shotNumber: shot.shot_number,
-          player: shot.player_name,
-          shotType: shot.shot_type,
-          startDistance: shot.start_distance,
-          endDistance: shot.end_distance,
-          calculatedDistance: shot.calculated_distance,
-          par: shot.par,
-          isNut: shot.is_nut || false,
-          isClutch: shot.is_clutch || false,
-          isGimme: shot.is_gimme || false,
-          timestamp: shot.created_at,
-        }))
-        setShots(formattedShots)
-
-        // Find the current state based on shots
-        let maxHole = 1
-        let maxShotNumber = 1
-        let lastShotDistance = null
-
-        for (const shot of formattedShots) {
-          if (shot.hole > maxHole || (shot.hole === maxHole && shot.shotNumber >= maxShotNumber)) {
-            maxHole = shot.hole
-            maxShotNumber = shot.shotNumber + 1
-            lastShotDistance = shot.endDistance
-          }
-        }
-
-        setCurrentHole(maxHole)
-        setCurrentShotNumber(maxShotNumber)
-        setLastDistance(lastShotDistance)
-        setIsRecordingShot(lastShotDistance !== null && lastShotDistance > 0)
-
-        // Set par for current hole
-        const holeData = courseHoles.find((h) => h.hole_number === maxHole)
-        if (holeData) {
-          setCurrentPar(holeData.par)
-        }
-      }
-    } catch (error) {
-      console.error("Error loading shots:", error)
-    } finally {
-      setIsSyncing(false)
-    }
-  }
-
+  // Load startup data
   useEffect(() => {
-    if (selectedRound && selectedTeam && courseHoles.length > 0) {
-      loadShotsFromSupabase()
-    }
-  }, [selectedRound, selectedTeam, courseHoles])
+    loadStartupData()
+  }, [])
 
-  const saveShotToSupabase = async (shot: Omit<Shot, "id" | "timestamp">) => {
-    if (!selectedRound || !selectedTeam) return null
+  const loadStartupData = async () => {
+    setLoadingStartup(true)
+    try {
+      // First check for refresh recovery
+      const hasRecoveryData = await checkForRefreshRecovery()
+
+      if (!hasRecoveryData) {
+        // Load normal startup data
+        const [playersData, roundsData] = await Promise.all([playersApi.getPlayers(), roundsApi.getRounds()])
+
+        setPlayers(playersData)
+        setRounds(roundsData.filter((r) => r.status === "upcoming" || r.status === "in_progress"))
+      }
+    } catch (error) {
+      console.error("Error loading startup data:", error)
+    }
+    setLoadingStartup(false)
+  }
+
+  const handleRefreshRecoveryContinue = async () => {
+    setShowRefreshRecovery(false)
+    if (selectedRound && selectedTeam && selectedPlayer) {
+      await loadCourseData(selectedRound.course_id)
+      await loadShotsFromSupabase("continue")
+      setIsSetupComplete(true)
+    }
+  }
+
+  const handleRefreshRecoveryStartOver = () => {
+    setShowRefreshRecovery(false)
+    clearTrackingState()
+    setSelectedRound(null)
+    setSelectedTeam(null)
+    setSelectedPlayer(null)
+    // Load fresh startup data
+    loadStartupData()
+  }
+
+  const handleRoundSelect = async (round: Round) => {
+    setSelectedRound(round)
+    // Reset team and player when round changes
+    setSelectedTeam(null)
+    setSelectedPlayer(null)
+    setTeams([])
+    try {
+      const teamsData = await teamsApi.getTeamsByRound(round.id)
+      setTeams(teamsData)
+    } catch (error) {
+      console.error("Error loading teams:", error)
+    }
+  }
+
+  const handleTeamSelect = (team: Team) => {
+    setSelectedTeam(team)
+    // Reset player when team changes
+    setSelectedPlayer(null)
+  }
+
+  const checkExistingData = async (teamId: string, roundId: string): Promise<ExistingDataInfo | null> => {
+    try {
+      const existingShots = await shotsApi.getShotsByTeamAndRound(teamId, roundId)
+
+      if (existingShots.length === 0) {
+        return null
+      }
+
+      const completedHoles = [...new Set(existingShots.map((shot) => shot.hole_number))].sort((a, b) => a - b)
+      const lastShot = existingShots.reduce((latest, shot) => {
+        const shotTime = new Date(shot.created_at)
+        const latestTime = new Date(latest.created_at)
+        return shotTime > latestTime ? shot : latest
+      })
+
+      return {
+        totalShots: existingShots.length,
+        completedHoles,
+        lastHole: lastShot.hole_number,
+        lastShotNumber: lastShot.shot_number,
+        lastActivity: new Date(lastShot.created_at),
+      }
+    } catch (error) {
+      console.error("Error checking existing data:", error)
+      return null
+    }
+  }
+
+  const loadCourseData = async (roundId: string) => {
+    setLoadingCourseData(true)
+    try {
+      console.log("DEBUG: Loading course data for round:", roundId)
+      const { course, holes } = await coursesApi.getCourseWithHoles(roundId, "Blue")
+      console.log(`DEBUG: Loaded ${holes.length} total hole records from DB for tee "Blue".`)
+
+      if (holes.length > 0) {
+        setCourseHoles(holes)
+
+        const hole1 = holes.find((h) => h.hole_number === 1)
+        if (hole1) {
+          console.log("DEBUG: Setting up hole 1:", hole1)
+          setCurrentHole(1)
+          setCurrentPar(hole1.par)
+          setCurrentDistance(hole1.distance.toString())
+          setDistanceUnit("yards")
+          setCurrentShotNumber(1)
+          setLastDistance(null)
+          setIsRecordingShot(false)
+          setShowSplashScreen(false)
+        } else {
+          console.error(`DEBUG: Course data loaded, but could not find data for Hole 1.`)
+          setCurrentDistance("")
+        }
+      } else {
+        console.error("DEBUG: No course holes found for this round's course in the database for 'Blue' tees.")
+        setCurrentDistance("")
+      }
+    } catch (error) {
+      console.error("DEBUG: Error in loadCourseData function:", error)
+      setCurrentDistance("")
+    } finally {
+      setLoadingCourseData(false)
+    }
+  }
+
+  const loadShotsFromSupabase = async (action?: DataConflictAction) => {
+    if (!selectedTeam || !selectedRound) return
 
     try {
       setIsSyncing(true)
 
-      // Handle Team Gimme conversion
-      let actualPlayerName = shot.player
-      let isGimme = shot.isGimme
+      if (action === "restart") {
+        // Delete all existing shots for this team/round
+        const existingShots = await shotsApi.getShotsByTeamAndRound(selectedTeam.id, selectedRound.id)
+        for (const shot of existingShots) {
+          await shotsApi.deleteShot(shot.id)
+        }
 
-      if (shot.player === "Team Gimme") {
-        const lastPlayer = getLastPlayerOnHole(shot.hole)
-        actualPlayerName = lastPlayer || selectedTeam.players[0]?.name || "Unknown"
-        isGimme = true
+        // Also delete hole completions
+        const existingCompletions = await holeCompletionsApi.getCompletionsByTeam(selectedTeam.id, selectedRound.id)
+        for (const completion of existingCompletions) {
+          await holeCompletionsApi.deleteCompletion(completion.id)
+        }
+
+        setShots([])
+        setCurrentHole(1)
+        setCurrentShotNumber(1)
+        const hole1 = courseHoles.find((h) => h.hole_number === 1)
+        if (hole1) {
+          setCurrentPar(hole1.par)
+          setCurrentDistance(hole1.distance.toString())
+        }
+        setLastDistance(null)
+        setIsRecordingShot(false)
+        setShowSplashScreen(false)
+        setLastSyncTime(new Date())
+        return
       }
 
-      const { data, error } = await supabase
-        .from("shots")
-        .insert({
-          round_id: selectedRound.id,
-          team_id: selectedTeam.id,
-          hole: shot.hole,
-          shot_number: shot.shotNumber,
-          player_name: actualPlayerName,
-          shot_type: shot.shotType,
-          start_distance: shot.startDistance,
-          end_distance: shot.endDistance,
-          calculated_distance: shot.calculatedDistance,
-          par: shot.par,
-          is_nut: shot.isNut,
-          is_clutch: shot.isClutch,
-          is_gimme: isGimme,
-        })
-        .select()
-        .single()
+      const supabaseShots = await shotsApi.getShotsByTeamAndRound(selectedTeam.id, selectedRound.id)
 
-      if (error) throw error
+      const localShots: LocalShot[] = supabaseShots.map((shot) => ({
+        id: shot.id,
+        hole: shot.hole_number,
+        par: getParForHole(shot.hole_number),
+        shotNumber: shot.shot_number,
+        player: shot.player?.name || "Unknown",
+        shotType: shot.shot_type,
+        startDistance: shot.start_distance,
+        endDistance: shot.end_distance,
+        calculatedDistance: shot.calculated_distance,
+        made: shot.made,
+        isNut: shot.is_nut,
+        isClutch: shot.is_clutch,
+        isGimme: shot.is_gimme, // NEW: Load gimme flag from database
+        timestamp: new Date(shot.created_at),
+      }))
 
-      const formattedShot: Shot = {
-        id: data.id,
-        hole: data.hole,
-        shotNumber: data.shot_number,
-        player: actualPlayerName,
-        shotType: data.shot_type,
-        startDistance: data.start_distance,
-        endDistance: data.end_distance,
-        calculatedDistance: data.calculated_distance,
-        par: data.par,
-        isNut: data.is_nut || false,
-        isClutch: data.is_clutch || false,
-        isGimme: isGimme,
-        timestamp: data.created_at,
+      setShots(localShots)
+
+      if (action === "continue" && localShots.length > 0) {
+        // Find the current state based on existing shots
+        const completedHoles = [...new Set(localShots.map((shot) => shot.hole))].sort((a, b) => a - b)
+        const lastCompletedHole = completedHoles[completedHoles.length - 1]
+
+        // Check if the last hole is actually completed (has a made shot)
+        const lastHoleShots = localShots.filter((shot) => shot.hole === lastCompletedHole)
+        const lastHoleCompleted = lastHoleShots.some((shot) => shot.made)
+
+        if (lastHoleCompleted && lastCompletedHole < 18) {
+          // Move to next hole
+          const nextHole = lastCompletedHole + 1
+          setCurrentHole(nextHole)
+          setCurrentShotNumber(1)
+          const nextHoleData = courseHoles.find((h) => h.hole_number === nextHole)
+          if (nextHoleData) {
+            setCurrentPar(nextHoleData.par)
+            setCurrentDistance(nextHoleData.distance.toString())
+          }
+          setLastDistance(null)
+          setIsRecordingShot(false)
+          setShowSplashScreen(false)
+        } else {
+          // Continue from where we left off on the current hole
+          const currentHoleShots = lastHoleShots.sort((a, b) => b.shotNumber - a.shotNumber)
+          const lastShot = currentHoleShots[0]
+
+          setCurrentHole(lastCompletedHole)
+          setCurrentShotNumber(lastShot.shotNumber + 1)
+          setCurrentPar(getParForHole(lastCompletedHole))
+          setLastDistance(lastShot.endDistance)
+          setCurrentDistance("")
+          setIsRecordingShot(false)
+          setShowSplashScreen(true) // Show splash to continue from last shot
+        }
       }
 
-      return formattedShot
+      setLastSyncTime(new Date())
     } catch (error) {
-      console.error("Error saving shot:", error)
-      return null
+      console.error("Error loading shots from Supabase:", error)
     } finally {
       setIsSyncing(false)
     }
   }
 
-  const getLastPlayerOnHole = (hole: number): string | null => {
-    const holeShots = shots.filter((s) => s.hole === hole && s.player !== "Team Gimme")
-    if (holeShots.length === 0) return null
-    return holeShots[holeShots.length - 1].player
+  const getParForHole = (holeNumber: number): number => {
+    const hole = courseHoles.find((h) => h.hole_number === holeNumber)
+    return hole ? hole.par : 4
+  }
+
+  const getDistanceForHole = (holeNumber: number): number => {
+    const hole = courseHoles.find((h) => h.hole_number === holeNumber)
+    return hole ? hole.distance : 400
+  }
+
+  // Get the last player who hit a shot on this hole
+  const getLastPlayerOnHole = (holeNumber: number): string => {
+    const holeShots = shots.filter((shot) => shot.hole === holeNumber).sort((a, b) => b.shotNumber - a.shotNumber)
+    if (holeShots.length > 0) {
+      return holeShots[0].player
+    }
+    // If no shots on this hole yet, use the selected player or first team player
+    return selectedPlayer?.name || selectedTeam?.players?.[0]?.name || "Unknown"
+  }
+
+  const saveShotToSupabase = async (shot: LocalShot) => {
+    if (!selectedTeam || !selectedRound) return
+
+    try {
+      // Handle "Team Gimme" by using the last player who hit a shot
+      let actualPlayerName = shot.player
+      if (shot.player === "Team Gimme") {
+        actualPlayerName = getLastPlayerOnHole(shot.hole)
+      }
+
+      const playerInTeam = selectedTeam.players?.find((p) => p.name === actualPlayerName)
+      if (!playerInTeam) {
+        console.error("Player not found in team:", actualPlayerName)
+        return
+      }
+
+      const supabaseShot = {
+        round_id: selectedRound.id,
+        team_id: selectedTeam.id,
+        player_id: playerInTeam.id,
+        hole_number: shot.hole,
+        shot_number: shot.shotNumber,
+        shot_type: shot.shotType as any,
+        start_distance: shot.startDistance,
+        end_distance: shot.endDistance,
+        calculated_distance: shot.calculatedDistance,
+        made: shot.made,
+        is_nut: shot.isNut,
+        is_clutch: shot.isClutch,
+        is_gimme: shot.isGimme || shot.player === "Team Gimme", // Mark as gimme if it was a team gimme
+      }
+
+      await shotsApi.createShot(supabaseShot)
+
+      // Update last activity after successful save
+      saveTrackingState()
+    } catch (error) {
+      console.error("Error saving shot to Supabase:", error)
+      setPendingShots((prev) => [...prev, shot])
+    }
+  }
+
+  const createHoleCompletion = async (holeNumber: number, holeShots: LocalShot[]) => {
+    if (!selectedTeam || !selectedRound || holeShots.length === 0) return
+
+    try {
+      // Filter out gimme shots when finding the longest shot for completion stats
+      const nonGimmeShots = holeShots.filter((shot) => !shot.isGimme)
+      const longestShot =
+        nonGimmeShots.length > 0
+          ? nonGimmeShots.reduce((longest, current) =>
+              current.calculatedDistance > longest.calculatedDistance ? current : longest,
+            )
+          : holeShots[0] // Fallback to any shot if all are gimmes
+
+      const longestShotPlayer = selectedTeam.players?.find((p) => p.name === longestShot.player)
+
+      const completion = {
+        round_id: selectedRound.id,
+        team_id: selectedTeam.id,
+        hole_number: holeNumber,
+        par: getParForHole(holeNumber),
+        total_shots: holeShots.length,
+        score_to_par: holeShots.length - getParForHole(holeNumber),
+        completed_at: new Date().toISOString(),
+        longest_shot_distance: longestShot.calculatedDistance,
+        longest_shot_player_id: longestShotPlayer?.id,
+        longest_shot_type: longestShot.shotType,
+      }
+
+      await holeCompletionsApi.upsertCompletion(completion)
+
+      // Update last activity after successful save
+      saveTrackingState()
+    } catch (error) {
+      console.error("Error creating hole completion:", error)
+    }
+  }
+
+  const handleStartTracking = async () => {
+    if (!selectedRound || !selectedTeam || !selectedPlayer) {
+      console.error("DEBUG: Cannot start tracking, missing selection.")
+      return
+    }
+
+    console.log("DEBUG: Starting tracking with:", {
+      player: selectedPlayer.name,
+      team: selectedTeam.name,
+      round: selectedRound.name,
+    })
+
+    // Save tracking state
+    saveTrackingState()
+
+    await loadCourseData(selectedRound.course_id)
+
+    // Check for existing data
+    const existingData = await checkExistingData(selectedTeam.id, selectedRound.id)
+
+    if (existingData) {
+      setExistingDataInfo(existingData)
+      setShowDataConflictDialog(true)
+      return // Don't proceed until user makes a choice
+    }
+
+    // No existing data, proceed normally
+    await loadShotsFromSupabase()
+    setIsSetupComplete(true)
+  }
+
+  const handleDataConflictResolution = async (action: DataConflictAction) => {
+    setConflictAction(action)
+    setShowDataConflictDialog(false)
+
+    if (action === "cancel") {
+      // Go back to setup
+      return
+    }
+
+    await loadShotsFromSupabase(action)
+    setIsSetupComplete(true)
   }
 
   const handleBackToSetup = () => {
-    localStorage.removeItem(RECOVERY_KEY)
-    setCurrentView("setup")
-    setSelectedPlayer(null)
-    setSelectedTeam(null)
-    setSelectedRound(null)
+    clearTrackingState()
+    setIsSetupComplete(false)
     setShots([])
+    setCourseHoles([])
     setCurrentHole(1)
     setCurrentShotNumber(1)
+    setCurrentPar(4)
+    setCurrentDistance("")
     setLastDistance(null)
     setIsRecordingShot(false)
+    setShowSplashScreen(false)
+    setShowHoleSummary(false)
+    setShowDataConflictDialog(false)
+    setExistingDataInfo(null)
+    setConflictAction(null)
+    setSelectedRound(null)
+    setSelectedTeam(null)
+    setSelectedPlayer(null)
   }
 
-  const getIntelligentUnit = (distance: number): "yards" | "ft" => {
-    return distance >= 100 ? "yards" : "ft"
+  const getIntelligentUnit = (distance: string) => {
+    const num = Number.parseInt(distance)
+    if (num && num < 50) return "feet"
+    return "yards"
   }
 
-  const getSliderRange = (lastDist: number) => {
-    if (lastDist >= 100) {
-      return { min: 0, max: lastDist, step: 5 }
-    } else {
-      return { min: 0, max: lastDist, step: 1 }
+  const getSliderRange = (shotType: string, startDistance?: number) => {
+    if (distanceUnit === "feet") {
+      const maxDistance = startDistance || 60
+      const minReasonableMax = 15
+      const actualMax = Math.max(maxDistance, minReasonableMax)
+      let defaultValue = Math.round(actualMax / 3)
+      if (shotType === "Putt") {
+        defaultValue = Math.round(actualMax / 2)
+      }
+      return { min: 0, max: actualMax, default: defaultValue, step: 1 }
     }
+
+    const maxDistance = startDistance || 500
+    let typicalShotDistance = 0
+    switch (shotType) {
+      case "Drive":
+        typicalShotDistance = Math.min(250, maxDistance)
+        break
+      case "Approach":
+        typicalShotDistance = Math.min(100, maxDistance)
+        break
+      case "Chip":
+        typicalShotDistance = Math.min(20, maxDistance)
+        break
+      case "Putt":
+        typicalShotDistance = Math.min(8, maxDistance)
+        break
+      case "Sand":
+        typicalShotDistance = Math.min(30, maxDistance)
+        break
+      case "Recovery":
+        typicalShotDistance = Math.min(50, maxDistance)
+        break
+      default:
+        typicalShotDistance = Math.min(100, maxDistance)
+        break
+    }
+    const remainingAfterTypicalShot = Math.max(0, maxDistance - typicalShotDistance)
+    const step = shotType === "Putt" || shotType === "Chip" ? 1 : 5
+    return { min: 0, max: maxDistance, default: remainingAfterTypicalShot, step: step }
   }
 
   const toggleEmojiTag = (emoji: string) => {
-    if (emoji === "💦") {
-      setIsNut(!isNut)
-    } else if (emoji === "🛟") {
-      setIsClutch(!isClutch)
-    }
+    if (emoji === "💦") setIsNut(!isNut)
+    if (emoji === "🛟") setIsClutch(!isClutch)
   }
 
   const getEmojiState = (emoji: string) => {
@@ -470,163 +659,216 @@ export function useShotTracking() {
     return false
   }
 
-  const handleShotTypeChange = (type: string) => {
-    setShotType(type)
-    if (type === "Putt") {
-      setDistanceUnit("ft")
-    } else if (lastDistance && lastDistance >= 100) {
-      setDistanceUnit("yards")
+  const getSmartDefaults = (par: number, shotNumber: number) => {
+    let defaultShotType = "Drive"
+    let defaultUnit: "yards" | "feet" = "yards"
+    if (par === 3) {
+      if (shotNumber === 1) {
+        defaultShotType = "Approach" // Changed from "Drive" to "Approach" for par 3s
+        defaultUnit = "yards"
+      } else {
+        defaultShotType = "Putt"
+        defaultUnit = "feet"
+      }
+    } else if (par === 4) {
+      if (shotNumber === 1) {
+        defaultShotType = "Drive"
+        defaultUnit = "yards"
+      } else if (shotNumber === 2) {
+        defaultShotType = "Approach"
+        defaultUnit = "yards"
+      } else {
+        defaultShotType = "Putt"
+        defaultUnit = "feet"
+      }
+    } else if (par === 5) {
+      if (shotNumber === 1) {
+        defaultShotType = "Drive"
+        defaultUnit = "yards"
+      } else if (shotNumber === 2 || shotNumber === 3) {
+        defaultShotType = "Approach"
+        defaultUnit = "yards"
+      } else {
+        defaultShotType = "Putt"
+        defaultUnit = "feet"
+      }
+    }
+    return { defaultShotType, defaultUnit }
+  }
+
+  const handleShotTypeChange = (shotType: string) => {
+    setShotType(shotType)
+    if (shotType === "Putt" || shotType === "Chip") setDistanceUnit("feet")
+    else setDistanceUnit("yards")
+    if (useSlider && isRecordingShot) {
+      const range = getSliderRange(shotType, lastDistance || undefined)
+      setCurrentDistance(range.default.toString())
     }
   }
 
   const handleStartShot = () => {
-    if (!currentDistance) return
-
     const distance = Number.parseInt(currentDistance)
-    setLastDistance(distance)
-    setIsRecordingShot(true)
-    setCurrentDistance("")
-    setSelectedPlayerName("")
-    setShotType("")
-    setIsNut(false)
-    setIsClutch(false)
-    setShowMoreOptions(false)
-
-    setShowSplashScreen(true)
+    if (distance && distance > 0 && currentPar) {
+      setLastDistance(distance)
+      setShowSplashScreen(true)
+      setCurrentDistance("")
+    }
   }
 
   const handleContinueFromSplash = () => {
     setShowSplashScreen(false)
+    setIsRecordingShot(true)
+    const { defaultShotType, defaultUnit } = getSmartDefaults(currentPar, currentShotNumber)
+    setShotType(defaultShotType)
+    setDistanceUnit(defaultUnit)
+    if (useSlider) {
+      const range = getSliderRange(defaultShotType, lastDistance!)
+      setCurrentDistance(range.default.toString())
+    } else {
+      setCurrentDistance("")
+    }
   }
 
-  const handleRecordShot = async (endDistance?: number, isHoleOut = false, isGimme = false) => {
-    if (!selectedPlayerName || !selectedShotType) return
-    if (!isHoleOut && !isGimme && !endDistance && endDistance !== 0) return
+  const handleRecordShot = async (isHoleOut = false, isToGimme = false) => {
+    if (selectedPlayerName && selectedShotType && lastDistance !== null) {
+      const endDistance = isHoleOut ? 0 : isToGimme ? GIMME_DISTANCE : Number.parseInt(currentDistance) || 0
+      const calculatedDistance = isHoleOut ? lastDistance : lastDistance - endDistance
 
-    const finalEndDistance = isHoleOut || isGimme ? 0 : endDistance!
-    const calculatedDistance = (lastDistance || 0) - finalEndDistance
+      // For Team Gimme, use the last player who hit a shot and mark as gimme
+      let actualPlayerName = selectedPlayerName
+      let isGimmeShot = false
 
-    const shotData: Omit<Shot, "id" | "timestamp"> = {
-      hole: currentHole,
-      shotNumber: currentShotNumber,
-      player: selectedPlayerName,
-      shotType: selectedShotType,
-      startDistance: lastDistance || 0,
-      endDistance: finalEndDistance,
-      calculatedDistance,
-      par: currentPar,
-      isNut,
-      isClutch,
-      isGimme,
+      if (selectedPlayerName === "Team Gimme") {
+        actualPlayerName = getLastPlayerOnHole(currentHole)
+        isGimmeShot = true
+      }
+
+      // Create the main shot
+      const newShot: LocalShot = {
+        id: Date.now().toString(),
+        hole: currentHole,
+        par: currentPar,
+        shotNumber: currentShotNumber,
+        player: actualPlayerName, // Use actual player name, not "Team Gimme"
+        shotType: selectedShotType,
+        startDistance: lastDistance,
+        endDistance: endDistance,
+        calculatedDistance: calculatedDistance,
+        made: isHoleOut,
+        isNut: isNut,
+        isClutch: isClutch,
+        isGimme: isGimmeShot, // Mark as gimme if it was a team gimme
+        timestamp: new Date(),
+      }
+
+      await saveShotToSupabase(newShot)
+      let updatedShots = [newShot, ...shots]
+      setShots(updatedShots)
+
+      // Handle hole completion scenarios
+      if (isHoleOut) {
+        // Direct hole out - hole is complete with just this shot
+        const holeShots = shots.filter((s) => s.hole === currentHole)
+        await createHoleCompletion(currentHole, [...holeShots, newShot])
+        handleNextHole()
+        return
+      }
+
+      if (isToGimme) {
+        // "To gimme" means this shot + automatic gimme putt = hole complete
+        // Assign the gimme putt to the SAME player who hit the approach shot
+        const gimmeShot: LocalShot = {
+          id: (Date.now() + 1).toString(),
+          hole: currentHole,
+          par: currentPar,
+          shotNumber: currentShotNumber + 1,
+          player: actualPlayerName, // Use actual player name
+          shotType: "Putt",
+          startDistance: GIMME_DISTANCE,
+          endDistance: 0,
+          calculatedDistance: GIMME_DISTANCE,
+          made: true,
+          isNut: false,
+          isClutch: false,
+          isGimme: true, // Mark this as a gimme shot
+          timestamp: new Date(),
+        }
+
+        // Save the gimme shot to database
+        await saveShotToSupabase(gimmeShot)
+        updatedShots = [gimmeShot, ...updatedShots]
+        setShots(updatedShots)
+
+        // Create hole completion with BOTH shots (the approach + gimme)
+        const holeShots = shots.filter((s) => s.hole === currentHole)
+        await createHoleCompletion(currentHole, [...holeShots, newShot, gimmeShot])
+        handleNextHole()
+        return
+      }
+
+      // Regular shot - continue playing
+      setIsNut(false)
+      setIsClutch(false)
+      setCurrentShotNumber(currentShotNumber + 1)
+      setSelectedPlayerName("")
+      setShotType("")
+      setLastDistance(endDistance)
+      setCurrentDistance("")
+      setIsRecordingShot(false)
+      setShowSplashScreen(true)
     }
+  }
 
-    const savedShot = await saveShotToSupabase(shotData)
-    if (savedShot) {
-      setShots((prev) => [...prev, savedShot])
-    }
-
-    if (isHoleOut || isGimme) {
-      setShowHoleSummary(true)
-    } else {
-      setLastDistance(finalEndDistance)
-      setCurrentShotNumber((prev) => prev + 1)
-    }
-
-    setIsRecordingShot(finalEndDistance > 0)
-    setSelectedPlayerName("")
-    setShotType("")
-    setCurrentDistance("")
-    setIsNut(false)
-    setIsClutch(false)
-    setShowMoreOptions(false)
+  const handleNextHole = () => {
+    if (currentHole + 1 > 18) return
+    setShowHoleSummary(true)
   }
 
   const handleContinueToNextHole = () => {
-    if (currentHole < 18) {
-      const nextHole = currentHole + 1
-      setCurrentHole(nextHole)
-      setCurrentShotNumber(1)
-      setLastDistance(null)
-      setIsRecordingShot(false)
-      setShowHoleSummary(false)
-
-      const holeData = courseHoles.find((h) => h.hole_number === nextHole)
-      if (holeData) {
-        setCurrentPar(holeData.par)
-      }
-    }
+    const nextHole = currentHole + 1
+    setCurrentHole(nextHole)
+    setIsNut(false)
+    setIsClutch(false)
+    const nextHolePar = getParForHole(nextHole)
+    const nextHoleDistance = getDistanceForHole(nextHole)
+    console.log(`DEBUG: Setting up hole ${nextHole}: par ${nextHolePar}, distance ${nextHoleDistance}`)
+    setCurrentPar(nextHolePar)
+    setCurrentDistance(nextHoleDistance.toString())
+    setDistanceUnit("yards")
+    setCurrentShotNumber(1)
+    setLastDistance(null)
+    setIsRecordingShot(false)
+    setShowSplashScreen(false)
+    setSelectedPlayerName("")
+    setShotType("")
+    setShowHoleSummary(false)
   }
 
   const handlePreviousHole = () => {
-    if (currentHole > 1) {
-      const prevHole = currentHole - 1
-      setCurrentHole(prevHole)
-
-      const holeData = courseHoles.find((h) => h.hole_number === prevHole)
-      if (holeData) {
-        setCurrentPar(holeData.par)
-      }
-
-      const holeShots = shots.filter((s) => s.hole === prevHole)
-      if (holeShots.length > 0) {
-        const lastShot = holeShots[holeShots.length - 1]
-        setLastDistance(lastShot.endDistance)
-        setCurrentShotNumber(holeShots.length + 1)
-        setIsRecordingShot(lastShot.endDistance > 0)
-      } else {
-        setLastDistance(null)
-        setCurrentShotNumber(1)
-        setIsRecordingShot(false)
-      }
-    }
+    if (currentHole <= 1) return
+    const prevHole = currentHole - 1
+    setCurrentHole(prevHole)
+    setIsNut(false)
+    setIsClutch(false)
+    const prevHolePar = getParForHole(prevHole)
+    const prevHoleDistance = getDistanceForHole(prevHole)
+    console.log(`DEBUG: Setting up hole ${prevHole}: par ${prevHolePar}, distance ${prevHoleDistance}`)
+    setCurrentPar(prevHolePar)
+    setCurrentDistance(prevHoleDistance.toString())
+    setDistanceUnit("yards")
+    setLastDistance(null)
+    setIsRecordingShot(false)
+    setShowSplashScreen(false)
+    setSelectedPlayerName("")
+    setShotType("")
+    setCurrentShotNumber(1)
   }
 
-  const handleSelectCourse = async (courseId: string) => {
-    if (!selectedRound) return
-
-    try {
-      setLoadingCourseData(true)
-
-      const { error: updateError } = await supabase
-        .from("rounds")
-        .update({ course_id: courseId })
-        .eq("id", selectedRound.id)
-
-      if (updateError) throw updateError
-
-      const { data: course, error: courseError } = await supabase
-        .from("courses")
-        .select("*")
-        .eq("id", courseId)
-        .single()
-
-      if (courseError) throw courseError
-
-      const { data: holes, error: holesError } = await supabase
-        .from("course_holes")
-        .select("*")
-        .eq("course_id", courseId)
-        .order("hole_number")
-
-      if (holesError) throw holesError
-
-      setCourseHoles(holes || [])
-      setSelectedRound((prev) => (prev ? { ...prev, course } : null))
-
-      const hole1 = holes?.find((h) => h.hole_number === 1)
-      if (hole1) {
-        setCurrentPar(hole1.par)
-      }
-
-      setCurrentView("tracking")
-    } catch (error) {
-      console.error("Error selecting course:", error)
-    } finally {
-      setLoadingCourseData(false)
-    }
+  const handleSelectCourse = (course: any) => {
+    console.log("Course selection not used - loading from database")
   }
 
-  const handleEditShot = (shot: Shot) => {
+  const handleEditShot = (shot: LocalShot) => {
     setEditingShot(shot)
     setSelectedPlayerName(shot.player)
     setShotType(shot.shotType)
@@ -637,148 +879,112 @@ export function useShotTracking() {
     setCurrentView("shot-edit")
   }
 
-  const handleSaveEditedShot = async () => {
-    if (!editingShot || !selectedPlayerName || !selectedShotType || !editStartDistance || !editEndDistance) return
-
-    try {
-      setIsSyncing(true)
-
-      const startDist = Number.parseInt(editStartDistance)
-      const endDist = Number.parseInt(editEndDistance)
-      const calculatedDist = startDist - endDist
-
-      const { error } = await supabase
-        .from("shots")
-        .update({
-          player_name: selectedPlayerName,
-          shot_type: selectedShotType,
-          start_distance: startDist,
-          end_distance: endDist,
-          calculated_distance: calculatedDist,
-          is_nut: isNut,
-          is_clutch: isClutch,
-        })
-        .eq("id", editingShot.id)
-
-      if (error) throw error
-
-      setShots((prev) =>
-        prev.map((shot) =>
-          shot.id === editingShot.id
-            ? {
-                ...shot,
-                player: selectedPlayerName,
-                shotType: selectedShotType,
-                startDistance: startDist,
-                endDistance: endDist,
-                calculatedDistance: calculatedDist,
-                isNut,
-                isClutch,
-              }
-            : shot,
-        ),
-      )
-
-      const nextShot = shots.find(
-        (shot) => shot.hole === editingShot.hole && shot.shotNumber === editingShot.shotNumber + 1,
-      )
-
-      if (nextShot) {
-        const { error: nextShotError } = await supabase
-          .from("shots")
-          .update({
-            start_distance: endDist,
-          })
-          .eq("id", nextShot.id)
-
-        if (nextShotError) throw nextShotError
-
-        setShots((prev) => prev.map((shot) => (shot.id === nextShot.id ? { ...shot, startDistance: endDist } : shot)))
-      }
-
-      setCurrentView("tracking")
-      setEditingShot(null)
-    } catch (error) {
-      console.error("Error updating shot:", error)
-    } finally {
-      setIsSyncing(false)
-    }
-  }
-
-  const handleDeleteShot = async () => {
+  const handleSaveEditedShot = () => {
     if (!editingShot) return
-
-    try {
-      setIsSyncing(true)
-
-      const { error } = await supabase.from("shots").delete().eq("id", editingShot.id)
-
-      if (error) throw error
-
-      setShots((prev) => prev.filter((shot) => shot.id !== editingShot.id))
-      setCurrentView("tracking")
-      setEditingShot(null)
-    } catch (error) {
-      console.error("Error deleting shot:", error)
-    } finally {
-      setIsSyncing(false)
+    const startDistance = Number.parseInt(editStartDistance) || 0
+    const endDistance = Number.parseInt(editEndDistance) || 0
+    const calculatedDistance = startDistance - endDistance
+    const updatedShot: LocalShot = {
+      ...editingShot,
+      player: selectedPlayerName,
+      shotType: selectedShotType,
+      startDistance: startDistance,
+      endDistance: endDistance,
+      calculatedDistance: calculatedDistance,
+      made: endDistance === 0,
+      isNut: isNut,
+      isClutch: isClutch,
     }
+    const updatedShots = shots.map((shot) => {
+      if (shot.id === editingShot.id) return updatedShot
+      if (shot.hole === editingShot.hole && shot.shotNumber === editingShot.shotNumber + 1) {
+        return { ...shot, startDistance: endDistance, calculatedDistance: endDistance - shot.endDistance }
+      }
+      return shot
+    })
+    setShots(updatedShots)
+    setCurrentView("tracking")
+    setEditingShot(null)
   }
 
-  const formatDistance = (distance: number): string => {
-    if (distance >= 100) {
-      return `${distance}y`
-    } else {
-      return `${distance}ft`
-    }
+  const handleDeleteShot = () => {
+    if (!editingShot) return
+    setShots(shots.filter((shot) => shot.id !== editingShot.id))
+    setCurrentView("tracking")
+    setEditingShot(null)
   }
 
-  const getDistanceColor = (distance: number): string => {
-    if (distance >= 200) return "bg-red-500"
-    if (distance >= 100) return "bg-orange-500"
+  const formatDistance = (distance: number, unit: "yards" | "feet" = "yards") => {
+    if (unit === "feet" || distance < 50) return `${distance} ft`
+    return `${distance} yards`
+  }
+
+  const getDistanceColor = (distance: number) => {
+    if (distance >= 250) return "bg-green-500"
+    if (distance >= 150) return "bg-blue-500"
     if (distance >= 50) return "bg-yellow-500"
-    return "bg-green-500"
+    return "bg-purple-500"
   }
 
-  const getScoreInfo = (hole: number) => {
-    const holeShots = shots.filter((s) => s.hole === hole)
+  const getScoreInfo = (hole: number, par: number) => {
+    const holeShots = shots.filter((shot) => shot.hole === hole)
     if (holeShots.length === 0) return null
-
-    const par = holeShots[0]?.par || 4
-    const score = holeShots.length
-    const scoreName =
-      score === par - 2
-        ? "Eagle"
-        : score === par - 1
-          ? "Birdie"
-          : score === par
-            ? "Par"
-            : score === par + 1
-              ? "Bogey"
-              : score === par + 2
-                ? "Double Bogey"
-                : `+${score - par}`
-
-    return { score, par, scoreName }
+    const totalShots = holeShots.length
+    const scoreToPar = totalShots - par
+    let scoreName = "",
+      scoreColor = ""
+    if (scoreToPar <= -3) {
+      scoreName = "Albatross"
+      scoreColor = "text-purple-600"
+    } else if (scoreToPar === -2) {
+      scoreName = "Eagle"
+      scoreColor = "text-blue-600"
+    } else if (scoreToPar === -1) {
+      scoreName = "Birdie"
+      scoreColor = "text-green-600"
+    } else if (scoreToPar === 0) {
+      scoreName = "Par"
+      scoreColor = "text-gray-600"
+    } else if (scoreToPar === 1) {
+      scoreName = "Bogey"
+      scoreColor = "text-yellow-600"
+    } else if (scoreToPar === 2) {
+      scoreName = "Double Bogey"
+      scoreColor = "text-orange-600"
+    } else {
+      scoreName = `+${scoreToPar}`
+      scoreColor = "text-red-600"
+    }
+    return { totalShots, scoreToPar, scoreName, scoreColor }
   }
 
   const getTotalScore = () => {
-    const totalShots = shots.length
-    const totalPar = shots.reduce((sum, shot) => {
-      const holeShots = shots.filter((s) => s.hole === shot.hole)
-      return holeShots.length === 1 ? sum + shot.par : sum
-    }, 0)
-
-    return totalShots - totalPar
+    const completedHoles = [...new Set(shots.map((shot) => shot.hole))]
+    let totalToPar = 0
+    completedHoles.forEach((hole) => {
+      const holeShots = shots.filter((shot) => shot.hole === hole)
+      if (holeShots.length > 0) {
+        totalToPar += holeShots.length - holeShots[0].par
+      }
+    })
+    return { completedHoles: completedHoles.length, totalToPar }
   }
 
   return {
-    // State
+    isSetupComplete,
     selectedPlayer,
     selectedTeam,
     selectedRound,
     courseHoles,
     loadingCourseData,
+    players,
+    rounds,
+    teams,
+    loadingStartup,
+    showDataConflictDialog,
+    existingDataInfo,
+    showRefreshRecovery,
+    refreshRecoveryData,
     currentView,
     currentDistance,
     selectedPlayerName,
@@ -800,34 +1006,53 @@ export function useShotTracking() {
     editStartDistance,
     editEndDistance,
     isSyncing,
-    recoveryData,
-
-    // Setters
+    lastSyncTime,
+    pendingShots,
+    setIsSetupComplete,
     setSelectedPlayer,
     setSelectedTeam,
     setSelectedRound,
+    setPlayers,
+    setRounds,
+    setTeams,
+    setLoadingStartup,
     setCurrentView,
     setCurrentDistance,
     setSelectedPlayerName,
     setShotType,
+    setShots,
+    setLastDistance,
+    setIsRecordingShot,
+    setShowSplashScreen,
+    setCurrentHole,
+    setCurrentPar,
+    setCurrentShotNumber,
     setDistanceUnit,
     setUseSlider,
+    setIsNut,
+    setIsClutch,
     setShowMoreOptions,
+    setShowHoleSummary,
+    setEditingShot,
     setEditStartDistance,
     setEditEndDistance,
-
-    // Handlers
+    handleRoundSelect,
+    handleTeamSelect,
+    handleStartTracking,
+    handleDataConflictResolution,
+    handleRefreshRecoveryContinue,
+    handleRefreshRecoveryStartOver,
     handleBackToSetup,
-    handleContinueFromRecovery,
-    handleStartOverFromRecovery,
     getIntelligentUnit,
     getSliderRange,
     toggleEmojiTag,
     getEmojiState,
+    getSmartDefaults,
     handleShotTypeChange,
     handleStartShot,
     handleContinueFromSplash,
     handleRecordShot,
+    handleNextHole,
     handleContinueToNextHole,
     handlePreviousHole,
     handleSelectCourse,
@@ -838,5 +1063,11 @@ export function useShotTracking() {
     getDistanceColor,
     getScoreInfo,
     getTotalScore,
+    loadShotsFromSupabase,
+    saveShotToSupabase,
+    createHoleCompletion,
+    getParForHole,
+    getDistanceForHole,
+    getLastPlayerOnHole,
   }
 }

@@ -1,6 +1,7 @@
 "use client"
 import StartupScreen from "@/components/startup-screen"
 import ShotTrackingInterface from "@/components/shot-tracking-interface"
+import DataConflictDialog from "@/components/data-conflict-dialog"
 import RefreshRecoveryScreen from "@/components/refresh-recovery-screen"
 import { useShotTracking } from "@/hooks/use-shot-tracking"
 
@@ -238,29 +239,72 @@ const LOMIRA_COURSE: Course = {
 export default function Home() {
   const shotTrackingProps = useShotTracking()
 
-  if (shotTrackingProps.currentView === "recovery" && shotTrackingProps.recoveryData) {
+  const {
+    isSetupComplete,
+    selectedPlayer,
+    selectedTeam,
+    selectedRound,
+    players,
+    rounds,
+    teams,
+    loadingStartup,
+    showDataConflictDialog,
+    existingDataInfo,
+    showRefreshRecovery,
+    refreshRecoveryData,
+    handleRoundSelect,
+    handleTeamSelect,
+    setSelectedPlayer,
+    handleStartTracking,
+    handleDataConflictResolution,
+    handleRefreshRecoveryContinue,
+    handleRefreshRecoveryStartOver,
+  } = shotTrackingProps
+
+  // Show refresh recovery screen first if detected
+  if (showRefreshRecovery && refreshRecoveryData) {
     return (
       <RefreshRecoveryScreen
-        recoveryData={shotTrackingProps.recoveryData}
-        onContinue={shotTrackingProps.handleContinueFromRecovery}
-        onStartOver={shotTrackingProps.handleStartOverFromRecovery}
+        recoveryData={refreshRecoveryData}
+        onContinueTracking={handleRefreshRecoveryContinue}
+        onStartOver={handleRefreshRecoveryStartOver}
       />
     )
   }
 
-  if (shotTrackingProps.currentView === "setup") {
+  // Show data conflict dialog if there's existing data
+  if (showDataConflictDialog && existingDataInfo && selectedTeam && selectedRound) {
+    return (
+      <DataConflictDialog
+        existingData={existingDataInfo}
+        teamName={selectedTeam.name}
+        roundName={selectedRound.name}
+        onContinue={() => handleDataConflictResolution("continue")}
+        onRestart={() => handleDataConflictResolution("restart")}
+        onCancel={() => handleDataConflictResolution("cancel")}
+      />
+    )
+  }
+
+  // Show setup screen if not complete
+  if (!isSetupComplete) {
     return (
       <StartupScreen
-        selectedPlayer={shotTrackingProps.selectedPlayer}
-        selectedTeam={shotTrackingProps.selectedTeam}
-        selectedRound={shotTrackingProps.selectedRound}
-        onPlayerSelect={shotTrackingProps.setSelectedPlayer}
-        onTeamSelect={shotTrackingProps.setSelectedTeam}
-        onRoundSelect={shotTrackingProps.setSelectedRound}
-        onStartTracking={() => shotTrackingProps.setCurrentView("tracking")}
+        players={players}
+        rounds={rounds}
+        teams={teams}
+        loading={loadingStartup}
+        selectedRound={selectedRound}
+        selectedTeam={selectedTeam}
+        selectedPlayer={selectedPlayer}
+        onRoundSelect={handleRoundSelect}
+        onTeamSelect={handleTeamSelect}
+        onPlayerSelect={setSelectedPlayer}
+        onStartTracking={handleStartTracking}
       />
     )
   }
 
+  // Show main tracking interface
   return <ShotTrackingInterface {...shotTrackingProps} />
 }

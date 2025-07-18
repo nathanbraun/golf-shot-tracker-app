@@ -2,111 +2,119 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { RotateCcw, Play, Clock } from "lucide-react"
+import { RefreshCw, Play, RotateCcw, AlertTriangle } from "lucide-react"
+
+interface RefreshRecoveryData {
+  roundName: string
+  teamName: string
+  playerName: string
+  currentHole: number
+  totalShots: number
+  lastActivity: string
+}
 
 interface RefreshRecoveryScreenProps {
-  recoveryData: {
-    roundName: string
-    teamName: string
-    playerName: string
-    currentHole: number
-    totalShots: number
-    lastActivity: string
-  }
-  onContinue: () => void
+  recoveryData: RefreshRecoveryData
+  onContinueTracking: () => void
   onStartOver: () => void
 }
 
-export default function RefreshRecoveryScreen({ recoveryData, onContinue, onStartOver }: RefreshRecoveryScreenProps) {
-  const formatTimeAgo = (timestamp: string) => {
-    const now = new Date()
-    const then = new Date(timestamp)
-    const diffMs = now.getTime() - then.getTime()
-    const diffMins = Math.floor(diffMs / (1000 * 60))
-
-    if (diffMins < 1) return "Just now"
-    if (diffMins < 60) return `${diffMins} minute${diffMins === 1 ? "" : "s"} ago`
-
-    const diffHours = Math.floor(diffMins / 60)
-    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`
-
-    const diffDays = Math.floor(diffHours / 24)
-    return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`
-  }
-
+export default function RefreshRecoveryScreen({
+  recoveryData,
+  onContinueTracking,
+  onStartOver,
+}: RefreshRecoveryScreenProps) {
   return (
     <div className="min-h-screen bg-green-50 p-4 flex items-center justify-center">
-      <div className="max-w-md mx-auto space-y-6">
-        <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-              <RotateCcw className="w-6 h-6" />
-              Welcome Back!
-            </CardTitle>
-            <p className="text-blue-100 text-sm">It looks like you were in the middle of tracking a round</p>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg text-center">Your Progress</CardTitle>
+      <div className="w-full max-w-md mx-auto">
+        <Card className="border-2 border-blue-200 bg-blue-50">
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center gap-2 text-blue-700 mb-2">
+              <RefreshCw className="w-8 h-8" />
+              <CardTitle className="text-xl">Welcome Back!</CardTitle>
+            </div>
+            <p className="text-blue-600 text-sm">
+              It looks like you were tracking a round. Would you like to continue where you left off?
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Round:</span>
-                <Badge variant="secondary">{recoveryData.roundName}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Team:</span>
-                <Badge variant="secondary">{recoveryData.teamName}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Player:</span>
-                <Badge variant="secondary">{recoveryData.playerName}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Current Hole:</span>
-                <Badge className="bg-green-600">{recoveryData.currentHole}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Total Shots:</span>
-                <Badge className="bg-blue-600">{recoveryData.totalShots}</Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  Last Activity:
-                </span>
-                <span className="text-sm">{formatTimeAgo(recoveryData.lastActivity)}</span>
-              </div>
+            {/* Recovery Data Summary */}
+            <Card className="bg-white border border-blue-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Your Round in Progress</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Round:</span>
+                    <span className="font-medium">{recoveryData.roundName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Team:</span>
+                    <span className="font-medium">{recoveryData.teamName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Player:</span>
+                    <span className="font-medium">{recoveryData.playerName}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-green-600">{recoveryData.currentHole}</div>
+                      <div className="text-sm text-muted-foreground">Current Hole</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-blue-600">{recoveryData.totalShots}</div>
+                      <div className="text-sm text-muted-foreground">Total Shots</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="text-xs text-center text-muted-foreground">
+                    <strong>Last activity:</strong> {recoveryData.lastActivity}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Options */}
+            <div className="space-y-4">
+              <div className="text-sm font-medium text-center text-gray-700">What would you like to do?</div>
+
+              <Button
+                onClick={onContinueTracking}
+                className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-3 h-14 text-lg"
+              >
+                <Play className="w-6 h-6" />
+                <div className="text-left">
+                  <div className="font-medium">Continue Tracking</div>
+                  <div className="text-sm text-green-100">Pick up where you left off</div>
+                </div>
+              </Button>
+
+              <Button
+                onClick={onStartOver}
+                variant="outline"
+                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-3 h-14 text-lg bg-transparent"
+              >
+                <RotateCcw className="w-6 h-6" />
+                <div className="text-left">
+                  <div className="font-medium">Start Over</div>
+                  <div className="text-sm text-gray-600">Go back to round selection</div>
+                </div>
+              </Button>
+            </div>
+
+            <div className="text-xs text-center text-muted-foreground bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+              <AlertTriangle className="w-4 h-4 inline mr-1" />
+              <strong>Tip:</strong> Your shot data is safely stored. You can always continue tracking even after closing
+              the app.
             </div>
           </CardContent>
         </Card>
-
-        <div className="space-y-3">
-          <Button
-            onClick={onContinue}
-            className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-2 h-12"
-          >
-            <Play className="w-4 h-4" />
-            Continue Tracking
-          </Button>
-
-          <Button
-            onClick={onStartOver}
-            variant="outline"
-            className="w-full flex items-center justify-center gap-2 h-12 bg-transparent"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Start Over
-          </Button>
-        </div>
-
-        <div className="text-center text-xs text-muted-foreground">
-          Your progress is automatically saved as you track shots
-        </div>
       </div>
     </div>
   )
