@@ -262,6 +262,11 @@ export default function ShotRecordingInput({
 
               {useSlider ? (
                 <div className="space-y-4 py-2">
+                  <div className="flex justify-center mb-4">
+                    <Badge variant="secondary" className="text-lg px-4 py-2">
+                      {currentDistanceNum} {distanceUnit}
+                    </Badge>
+                  </div>
                   <div className="px-2">
                     <Slider
                       value={[currentDistanceNum]}
@@ -276,9 +281,6 @@ export default function ShotRecordingInput({
                     <span>
                       {sliderRange.min} {distanceUnit}
                     </span>
-                    <Badge variant="secondary" className="text-base px-3 py-1">
-                      {currentDistanceNum} {distanceUnit}
-                    </Badge>
                     <span>
                       {sliderRange.max} {distanceUnit}
                     </span>
