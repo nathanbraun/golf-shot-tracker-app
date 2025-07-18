@@ -74,6 +74,9 @@ export default function ShotRecordingInput({
   const sliderRange = getSliderRange(selectedShotType, lastDistance)
   const currentDistanceNum = Number.parseInt(currentDistance) || 0
 
+  // Show hole out/gimme options when close to the hole
+  const isCloseToHole = lastDistance <= 50 || (lastDistance <= 100 && selectedShotType === "Putt")
+
   return (
     <div className="space-y-4">
       {/* Blue box - Record what happened on shot N */}
@@ -137,23 +140,48 @@ export default function ShotRecordingInput({
             </Button>
 
             {showMoreOptions && (
-              <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-                <Label className="text-base font-medium">Tag this shot</Label>
-                <div className="flex gap-3 justify-center">
-                  {EMOJI_TAGS.map((emoji) => (
-                    <Button
-                      key={emoji}
-                      variant={getEmojiState(emoji) ? "default" : "outline"}
-                      onClick={() => onToggleEmojiTag(emoji)}
-                      className="text-2xl h-14 w-14 p-0"
-                    >
-                      {emoji}
-                    </Button>
-                  ))}
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                {/* Emoji Tags */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium">Tag this shot</Label>
+                  <div className="flex gap-3 justify-center">
+                    {EMOJI_TAGS.map((emoji) => (
+                      <Button
+                        key={emoji}
+                        variant={getEmojiState(emoji) ? "default" : "outline"}
+                        onClick={() => onToggleEmojiTag(emoji)}
+                        className="text-2xl h-14 w-14 p-0"
+                      >
+                        {emoji}
+                      </Button>
+                    ))}
+                  </div>
+                  {(isNut || isClutch) && (
+                    <div className="text-center text-sm text-muted-foreground">
+                      Selected: {isNut && "💦"} {isClutch && "🛟"}
+                    </div>
+                  )}
                 </div>
-                {(isNut || isClutch) && (
-                  <div className="text-center text-sm text-muted-foreground">
-                    Selected: {isNut && "💦"} {isClutch && "🛟"}
+
+                {/* Hole Out / Gimme Options - only show when close */}
+                {isCloseToHole && selectedPlayerName && selectedShotType && (
+                  <div className="space-y-3 border-t pt-4">
+                    <Label className="text-base font-medium">Quick finish options</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        onClick={() => onRecordShot(true)} // Hole out
+                        className="bg-green-600 hover:bg-green-700 text-white h-12 text-sm font-medium"
+                      >
+                        🏌️ Hole Out
+                      </Button>
+                      <Button
+                        onClick={() => onRecordShot(false, true)} // To gimme
+                        disabled={lastDistance > 5}
+                        className="bg-green-500 hover:bg-green-600 text-white h-12 text-sm font-medium disabled:opacity-50"
+                      >
+                        🤝 To Gimme
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -163,14 +191,14 @@ export default function ShotRecordingInput({
       </Card>
 
       {/* Arrow indicator */}
-      {selectedPlayerName && selectedShotType && (
+      {selectedPlayerName && selectedShotType && !isCloseToHole && (
         <div className="flex justify-center">
           <ArrowDown className="w-6 h-6 text-gray-400" />
         </div>
       )}
 
       {/* Green box - Distance remaining after shot N (sets up shot N+1) */}
-      {selectedPlayerName && selectedShotType && (
+      {selectedPlayerName && selectedShotType && !isCloseToHole && (
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-green-700">
@@ -258,22 +286,6 @@ export default function ShotRecordingInput({
 
             {/* Action Buttons */}
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  onClick={() => onRecordShot(true)} // Hole out
-                  disabled={!selectedPlayerName || !selectedShotType}
-                  className="bg-green-600 hover:bg-green-700 text-white h-14 text-base font-medium"
-                >
-                  🏌️ Hole Out
-                </Button>
-                <Button
-                  onClick={() => onRecordShot(false, true)} // To gimme
-                  disabled={!selectedPlayerName || !selectedShotType || currentDistanceNum > 5}
-                  className="bg-green-500 hover:bg-green-600 text-white h-14 text-base font-medium"
-                >
-                  🤝 To Gimme
-                </Button>
-              </div>
               <Button
                 onClick={() => onRecordShot()}
                 disabled={!selectedPlayerName || !selectedShotType || !currentDistance}
