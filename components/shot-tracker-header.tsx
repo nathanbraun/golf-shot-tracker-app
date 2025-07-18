@@ -10,7 +10,7 @@ interface ShotTrackerHeaderProps {
   currentPar: number
   currentShotNumber: number
   isRecordingShot: boolean
-  totalScore: {
+  totalScore?: {
     completedHoles: number
     totalToPar: number
   }
@@ -48,6 +48,9 @@ export default function ShotTrackerHeader({
   onViewFeed,
   onViewSummary,
 }: ShotTrackerHeaderProps) {
+  // Provide default values if totalScore is undefined
+  const safeScore = totalScore || { completedHoles: 0, totalToPar: 0 }
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -82,7 +85,7 @@ export default function ShotTrackerHeader({
 
         <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground flex-wrap">
           <div className="flex items-center gap-1">
-            <span className="font-medium">{totalScore.completedHoles}</span>
+            <span className="font-medium">{safeScore.completedHoles}</span>
             <span>holes</span>
           </div>
           <div className="flex items-center gap-1">
@@ -90,8 +93,8 @@ export default function ShotTrackerHeader({
             <span>shots</span>
           </div>
           <div className="flex items-center gap-1">
-            <Badge variant={totalScore.totalToPar <= 0 ? "default" : "destructive"} className="text-xs px-1.5 py-0.5">
-              {totalScore.totalToPar > 0 ? `+${totalScore.totalToPar}` : totalScore.totalToPar}
+            <Badge variant={safeScore.totalToPar <= 0 ? "default" : "destructive"} className="text-xs px-1.5 py-0.5">
+              {safeScore.totalToPar > 0 ? `+${safeScore.totalToPar}` : safeScore.totalToPar}
             </Badge>
           </div>
           {(isSyncing || loadingCourseData) && (

@@ -1,21 +1,19 @@
 "use client"
 
+import { useState } from "react"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Slider } from "@/components/ui/slider"
-import { Target, ToggleLeft, ToggleRight, Settings, ArrowDown } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { ChevronDown, ChevronUp } from "lucide-react"
 
 const SHOT_TYPES = ["Drive", "Approach", "Chip", "Putt", "Sand", "Recovery"]
 const EMOJI_TAGS = ["💦", "🛟"]
 
 interface ShotRecordingInputProps {
-  currentHole: number
-  currentPar: number
-  currentShotNumber: number
-  lastDistance: number
   selectedPlayerName: string
   selectedShotType: string
   currentDistance: string
@@ -24,18 +22,20 @@ interface ShotRecordingInputProps {
   isNut: boolean
   isClutch: boolean
   showMoreOptions: boolean
-  players: string[]
+  lastDistance: number | null
+  currentPar: number
+  currentShotNumber: number
+  selectedTeam: {
+    players?: Array<{ name: string }>
+  } | null
   onPlayerSelect: (player: string) => void
-  onShotTypeChange: (type: string) => void
+  onShotTypeSelect: (shotType: string) => void
   onDistanceChange: (distance: string) => void
   onDistanceUnitChange: (unit: "yards" | "feet") => void
-  onToggleSlider: () => void
-  onToggleMoreOptions: () => void
-  onToggleEmojiTag: (emoji: string) => void
+  onSliderToggle: (useSlider: boolean) => void
+  onEmojiToggle: (emoji: string) => void
+  onMoreOptionsToggle: () => void
   onRecordShot: (isHoleOut?: boolean, isToGimme?: boolean) => void
-  onStartShot: () => void
-  formatDistance: (distance: number) => string
-  getIntelligentUnit: (distance: string) => "yards" | "feet"
   getSliderRange: (
     shotType: string,
     startDistance?: number,
@@ -44,10 +44,6 @@ interface ShotRecordingInputProps {
 }
 
 export default function ShotRecordingInput({
-  currentHole,
-  currentPar,
-  currentShotNumber,
-  lastDistance,
   selectedPlayerName,
   selectedShotType,
   currentDistance,
@@ -56,278 +52,248 @@ export default function ShotRecordingInput({
   isNut,
   isClutch,
   showMoreOptions,
-  players,
+  lastDistance,
+  currentPar,
+  currentShotNumber,
+  selectedTeam,
   onPlayerSelect,
-  onShotTypeChange,
+  onShotTypeSelect,
   onDistanceChange,
   onDistanceUnitChange,
-  onToggleSlider,
-  onToggleMoreOptions,
-  onToggleEmojiTag,
+  onSliderToggle,
+  onEmojiToggle,
+  onMoreOptionsToggle,
   onRecordShot,
-  onStartShot,
-  formatDistance,
-  getIntelligentUnit,
   getSliderRange,
   getEmojiState,
 }: ShotRecordingInputProps) {
-  const sliderRange = getSliderRange(selectedShotType, lastDistance)
-  const currentDistanceNum = Number.parseInt(currentDistance) || 0
+  const [showDistanceInput, setShowDistanceInput] = useState(false)
 
-  // Show hole out/gimme buttons prominently when within 2 of par or on par 3s
-  const shouldShowFinishButtonsProminently = () => {
+  // Determine if we should show finish buttons prominently
+  const shouldShowFinishButtons = () => {
     if (currentPar === 3) return true // Always show on par 3s
-    return currentShotNumber >= currentPar - 1 // Within 2 of par (par-1 or more shots)
+    if (currentPar === 4 && currentShotNumber >= 2) return true // Show on shot 2+ for par 4s
+    if (currentPar === 5 && currentShotNumber >= 3) return true // Show on shot 3+ for par 5s
+    return false
   }
 
-  const showFinishButtonsUp = shouldShowFinishButtonsProminently()
+  const showFinishButtonsProminent = shouldShowFinishButtons()
+
+  const range = selectedShotType
+    ? getSliderRange(selectedShotType, lastDistance || undefined)
+    : { min: 0, max: 100, default: 50, step: 1 }
 
   return (
     <div className="space-y-4">
-      {/* Blue box - Record what happened on shot N */}
-      <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-blue-700">
-            <Target className="w-5 h-5" />
-            Record Shot {currentShotNumber}
-          </CardTitle>
-          <div className="text-sm text-blue-600">
-            From {formatDistance(lastDistance)} • Par {currentPar}
-          </div>
+      {/* Blue Box - Record Shot Information */}
+      <Card className="border-2 border-blue-200 bg-blue-50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-blue-800 text-lg">Record Shot {currentShotNumber}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6 bg-white rounded-lg p-4 mx-2 mb-2">
+        <CardContent className="space-y-4">
           {/* Player Selection */}
-          <div className="space-y-3">
-            <Label className="text-base font-medium">Who hit this shot?</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {players.map((player) => (
+          <div>
+            <Label className="text-sm font-medium text-blue-700 mb-2 block">Who hit this shot?</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {selectedTeam?.players?.map((player) => (
                 <Button
-                  key={player}
-                  variant={selectedPlayerName === player ? "default" : "outline"}
-                  onClick={() => onPlayerSelect(player)}
-                  className="h-14 text-base font-medium"
+                  key={player.name}
+                  variant={selectedPlayerName === player.name ? "default" : "outline"}
+                  onClick={() => onPlayerSelect(player.name)}
+                  className="h-10 text-sm"
                 >
-                  {player}
+                  {player.name}
                 </Button>
               ))}
               <Button
                 variant={selectedPlayerName === "Team Gimme" ? "default" : "outline"}
                 onClick={() => onPlayerSelect("Team Gimme")}
-                className="h-14 col-span-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-base font-medium"
+                className="h-10 text-sm bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200"
               >
-                🤝 Team Gimme
+                Team Gimme
               </Button>
             </div>
           </div>
 
           {/* Shot Type Selection */}
-          <div className="space-y-3">
-            <Label className="text-base font-medium">What type of shot was it?</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {SHOT_TYPES.map((type) => (
-                <Button
-                  key={type}
-                  variant={selectedShotType === type ? "default" : "outline"}
-                  onClick={() => onShotTypeChange(type)}
-                  className="h-12 text-sm"
-                >
-                  {type}
-                </Button>
-              ))}
+          {selectedPlayerName && (
+            <div>
+              <Label className="text-sm font-medium text-blue-700 mb-2 block">What type of shot?</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {SHOT_TYPES.map((type) => (
+                  <Button
+                    key={type}
+                    variant={selectedShotType === type ? "default" : "outline"}
+                    onClick={() => onShotTypeSelect(type)}
+                    className="h-10 text-sm"
+                  >
+                    {type}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Prominent Finish Options - show when close to par */}
-          {showFinishButtonsUp && selectedPlayerName && selectedShotType && (
-            <div className="space-y-3 p-4 bg-green-50 rounded-lg border border-green-200">
-              <Label className="text-base font-medium text-green-700">Quick finish options</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  onClick={() => onRecordShot(true)} // Hole out
-                  className="bg-green-600 hover:bg-green-700 text-white h-12 text-sm font-medium"
-                >
-                  🏌️ Hole Out
+          {/* Prominent Finish Buttons (when close to par) */}
+          {selectedPlayerName && selectedShotType && showFinishButtonsProminent && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <Label className="text-sm font-medium text-green-700 mb-2 block">Finish the hole?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={() => onRecordShot(true)} className="bg-green-600 hover:bg-green-700 text-white h-10">
+                  Hole Out
                 </Button>
                 <Button
-                  onClick={() => onRecordShot(false, true)} // To gimme
-                  className="bg-green-500 hover:bg-green-600 text-white h-12 text-sm font-medium"
+                  onClick={() => onRecordShot(false, true)}
+                  className="bg-green-600 hover:bg-green-700 text-white h-10"
                 >
-                  🤝 To Gimme
+                  To Gimme
                 </Button>
               </div>
             </div>
           )}
 
-          {/* More Options */}
-          <div className="space-y-3">
-            <Button variant="ghost" onClick={onToggleMoreOptions} className="flex items-center gap-2 text-sm">
-              <Settings className="w-4 h-4" />
-              {showMoreOptions ? "Hide" : "Show"} More Options
-            </Button>
+          {/* Show More Options */}
+          {selectedPlayerName && selectedShotType && (
+            <div>
+              <Button
+                variant="ghost"
+                onClick={onMoreOptionsToggle}
+                className="w-full flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+              >
+                <span>Show More Options</span>
+                {showMoreOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
 
-            {showMoreOptions && (
-              <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-                {/* Emoji Tags */}
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">Tag this shot</Label>
-                  <div className="flex gap-3 justify-center">
-                    {EMOJI_TAGS.map((emoji) => (
-                      <Button
-                        key={emoji}
-                        variant={getEmojiState(emoji) ? "default" : "outline"}
-                        onClick={() => onToggleEmojiTag(emoji)}
-                        className="text-2xl h-14 w-14 p-0"
-                      >
-                        {emoji}
-                      </Button>
-                    ))}
+              {showMoreOptions && (
+                <div className="space-y-3 pt-3 border-t border-blue-200">
+                  {/* Emoji Tags */}
+                  <div>
+                    <Label className="text-sm font-medium text-blue-700 mb-2 block">Tags</Label>
+                    <div className="flex gap-2">
+                      {EMOJI_TAGS.map((emoji) => (
+                        <Button
+                          key={emoji}
+                          variant={getEmojiState(emoji) ? "default" : "outline"}
+                          onClick={() => onEmojiToggle(emoji)}
+                          className="h-10 w-12 text-lg"
+                        >
+                          {emoji}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
-                  {(isNut || isClutch) && (
-                    <div className="text-center text-sm text-muted-foreground">
-                      Selected: {isNut && "💦"} {isClutch && "🛟"}
+
+                  {/* Finish Buttons (when not prominent) */}
+                  {!showFinishButtonsProminent && (
+                    <div>
+                      <Label className="text-sm font-medium text-blue-700 mb-2 block">Finish Options</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          onClick={() => onRecordShot(true)}
+                          variant="outline"
+                          className="h-10 border-green-300 text-green-700 hover:bg-green-50"
+                        >
+                          Hole Out
+                        </Button>
+                        <Button
+                          onClick={() => onRecordShot(false, true)}
+                          variant="outline"
+                          className="h-10 border-green-300 text-green-700 hover:bg-green-50"
+                        >
+                          To Gimme
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* Hidden Finish Options - show when NOT close to par */}
-                {!showFinishButtonsUp && selectedPlayerName && selectedShotType && (
-                  <div className="space-y-3 border-t pt-4">
-                    <Label className="text-base font-medium">Quick finish options</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        onClick={() => onRecordShot(true)} // Hole out
-                        className="bg-green-600 hover:bg-green-700 text-white h-12 text-sm font-medium"
-                      >
-                        🏌️ Hole Out
-                      </Button>
-                      <Button
-                        onClick={() => onRecordShot(false, true)} // To gimme
-                        className="bg-green-500 hover:bg-green-600 text-white h-12 text-sm font-medium"
-                      >
-                        🤝 To Gimme
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Arrow indicator */}
-      {selectedPlayerName && selectedShotType && (
-        <div className="flex justify-center">
-          <ArrowDown className="w-6 h-6 text-gray-400" />
-        </div>
-      )}
-
-      {/* Green box - Distance remaining after shot N (sets up shot N+1) */}
-      {selectedPlayerName && selectedShotType && (
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-green-700">
-              <Target className="w-5 h-5" />
-              Distance Remaining
-            </CardTitle>
-            <div className="text-sm text-green-600">
-              After {selectedPlayerName}'s {selectedShotType.toLowerCase()}
-            </div>
+      {/* Green Box - Distance Remaining (only for regular shots) */}
+      {selectedPlayerName && selectedShotType && !showDistanceInput && (
+        <Card className="border-2 border-green-200 bg-green-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-green-800 text-lg">Distance Remaining</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 bg-white rounded-lg p-4 mx-2 mb-2">
-            {/* Distance Input */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-medium">How far to the hole?</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onToggleSlider}
-                    className="flex items-center gap-1 text-sm"
-                  >
-                    {useSlider ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                    Slider
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onDistanceUnitChange(distanceUnit === "yards" ? "feet" : "yards")}
-                    className="text-sm min-w-[60px]"
-                  >
-                    {distanceUnit}
-                  </Button>
+          <CardContent className="space-y-4">
+            {/* Distance Input Method Toggle */}
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-green-700">Use slider</Label>
+              <Switch checked={useSlider} onCheckedChange={onSliderToggle} />
+            </div>
+
+            {useSlider ? (
+              <div className="space-y-3">
+                {/* Distance Display - MOVED ABOVE SLIDER */}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-700">
+                    {currentDistance || range.default} {distanceUnit}
+                  </div>
+                </div>
+
+                {/* Slider */}
+                <Slider
+                  value={[Number.parseInt(currentDistance) || range.default]}
+                  onValueChange={(value) => onDistanceChange(value[0].toString())}
+                  min={range.min}
+                  max={range.max}
+                  step={range.step}
+                  className="w-full"
+                />
+
+                {/* Range Labels */}
+                <div className="flex justify-between text-xs text-green-600">
+                  <span>
+                    {range.min} {distanceUnit}
+                  </span>
+                  <span>
+                    {range.max} {distanceUnit}
+                  </span>
                 </div>
               </div>
-
-              {useSlider ? (
-                <div className="space-y-4 py-2">
-                  <div className="flex justify-center mb-2">
-                    <Badge variant="secondary" className="text-lg px-4 py-2">
-                      {currentDistanceNum} {distanceUnit}
-                    </Badge>
-                  </div>
-                  <div className="px-2">
-                    <Slider
-                      value={[currentDistanceNum]}
-                      onValueChange={(value) => onDistanceChange(value[0].toString())}
-                      min={sliderRange.min}
-                      max={sliderRange.max}
-                      step={sliderRange.step}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="flex justify-between text-sm text-muted-foreground px-2">
-                    <span>
-                      {sliderRange.min} {distanceUnit}
-                    </span>
-                    <span>
-                      {sliderRange.max} {distanceUnit}
-                    </span>
-                  </div>
-                </div>
-              ) : (
+            ) : (
+              <div className="space-y-3">
                 <div className="flex gap-2">
                   <Input
                     type="number"
-                    placeholder="Distance remaining"
                     value={currentDistance}
-                    onChange={(e) => {
-                      onDistanceChange(e.target.value)
-                      if (e.target.value) {
-                        onDistanceUnitChange(getIntelligentUnit(e.target.value))
-                      }
-                    }}
-                    className="text-lg h-14"
+                    onChange={(e) => onDistanceChange(e.target.value)}
+                    placeholder="Enter distance"
+                    className="flex-1"
                   />
-                  <Button
-                    variant="outline"
-                    onClick={() => onDistanceUnitChange(getIntelligentUnit(currentDistance))}
-                    className="h-14 px-4 text-base"
-                  >
-                    {distanceUnit}
-                  </Button>
+                  <div className="flex border border-input rounded-md">
+                    <Button
+                      variant={distanceUnit === "yards" ? "default" : "ghost"}
+                      onClick={() => onDistanceUnitChange("yards")}
+                      className="h-10 px-3 rounded-r-none text-sm"
+                      size="sm"
+                    >
+                      yards
+                    </Button>
+                    <Button
+                      variant={distanceUnit === "feet" ? "default" : "ghost"}
+                      onClick={() => onDistanceUnitChange("feet")}
+                      className="h-10 px-3 rounded-l-none text-sm"
+                      size="sm"
+                    >
+                      feet
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <Button
-                onClick={() => onRecordShot()}
-                disabled={!selectedPlayerName || !selectedShotType || !currentDistance}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white h-14 text-base font-medium"
-              >
-                Record Shot & Continue
-              </Button>
-              <Button
-                onClick={onStartShot}
-                variant="outline"
-                className="w-full h-12 text-base font-medium bg-transparent"
-              >
-                Start Over
-              </Button>
-            </div>
+            {/* Record Shot Button */}
+            <Button
+              onClick={() => onRecordShot()}
+              disabled={!currentDistance}
+              className="w-full bg-green-600 hover:bg-green-700 text-white h-12 text-lg font-medium"
+            >
+              Record Shot
+            </Button>
           </CardContent>
         </Card>
       )}
