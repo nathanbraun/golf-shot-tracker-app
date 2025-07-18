@@ -74,6 +74,14 @@ export default function ShotRecordingInput({
   const sliderRange = getSliderRange(selectedShotType, lastDistance)
   const currentDistanceNum = Number.parseInt(currentDistance) || 0
 
+  // Show hole out/gimme buttons prominently when within 2 of par or on par 3s
+  const shouldShowFinishButtonsProminently = () => {
+    if (currentPar === 3) return true // Always show on par 3s
+    return currentShotNumber >= currentPar - 1 // Within 2 of par (par-1 or more shots)
+  }
+
+  const showFinishButtonsUp = shouldShowFinishButtonsProminently()
+
   return (
     <div className="space-y-4">
       {/* Blue box - Record what happened on shot N */}
@@ -129,6 +137,27 @@ export default function ShotRecordingInput({
             </div>
           </div>
 
+          {/* Prominent Finish Options - show when close to par */}
+          {showFinishButtonsUp && selectedPlayerName && selectedShotType && (
+            <div className="space-y-3 p-4 bg-green-50 rounded-lg border border-green-200">
+              <Label className="text-base font-medium text-green-700">Quick finish options</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={() => onRecordShot(true)} // Hole out
+                  className="bg-green-600 hover:bg-green-700 text-white h-12 text-sm font-medium"
+                >
+                  🏌️ Hole Out
+                </Button>
+                <Button
+                  onClick={() => onRecordShot(false, true)} // To gimme
+                  className="bg-green-500 hover:bg-green-600 text-white h-12 text-sm font-medium"
+                >
+                  🤝 To Gimme
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* More Options */}
           <div className="space-y-3">
             <Button variant="ghost" onClick={onToggleMoreOptions} className="flex items-center gap-2 text-sm">
@@ -160,8 +189,8 @@ export default function ShotRecordingInput({
                   )}
                 </div>
 
-                {/* Hole Out / Gimme Options - always show when player and shot type selected */}
-                {selectedPlayerName && selectedShotType && (
+                {/* Hidden Finish Options - show when NOT close to par */}
+                {!showFinishButtonsUp && selectedPlayerName && selectedShotType && (
                   <div className="space-y-3 border-t pt-4">
                     <Label className="text-base font-medium">Quick finish options</Label>
                     <div className="grid grid-cols-2 gap-3">
