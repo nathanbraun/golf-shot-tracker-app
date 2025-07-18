@@ -69,7 +69,7 @@ export default function StartupScreen({
             </div>
             <p className="text-muted-foreground">Select your round to begin</p>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-8">
             {loading ? (
               <div className="flex justify-center items-center p-8">
                 <Loader2 className="w-8 h-8 animate-spin text-green-600" />
@@ -77,13 +77,13 @@ export default function StartupScreen({
             ) : (
               <>
                 {/* Round Selection */}
-                <div className="space-y-2">
-                  <Label htmlFor="round-select" className="flex items-center gap-2">
+                <div className="space-y-3">
+                  <Label htmlFor="round-select" className="flex items-center gap-2 text-base font-medium">
                     <Calendar className="w-4 h-4" />
                     Select Round
                   </Label>
                   <Select onValueChange={handleRoundChange} value={selectedRound?.id}>
-                    <SelectTrigger id="round-select">
+                    <SelectTrigger id="round-select" className="h-12 text-lg">
                       <SelectValue placeholder="Choose a round..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -98,13 +98,13 @@ export default function StartupScreen({
 
                 {/* Team Selection */}
                 {selectedRound && (
-                  <div className="space-y-2">
-                    <Label htmlFor="team-select" className="flex items-center gap-2">
+                  <div className="space-y-3">
+                    <Label htmlFor="team-select" className="flex items-center gap-2 text-base font-medium">
                       <Users className="w-4 h-4" />
                       Select Team
                     </Label>
                     <Select onValueChange={handleTeamChange} value={selectedTeam?.id} disabled={!teams.length}>
-                      <SelectTrigger id="team-select">
+                      <SelectTrigger id="team-select" className="h-12 text-lg">
                         <SelectValue
                           placeholder={teams.length > 0 ? "Choose your team..." : "No teams for this round"}
                         />
@@ -122,8 +122,8 @@ export default function StartupScreen({
 
                 {/* Player Selection */}
                 {selectedTeam && (
-                  <div className="space-y-2">
-                    <Label htmlFor="player-select" className="flex items-center gap-2">
+                  <div className="space-y-3">
+                    <Label htmlFor="player-select" className="flex items-center gap-2 text-base font-medium">
                       <User className="w-4 h-4" />
                       Select Player
                     </Label>
@@ -132,7 +132,7 @@ export default function StartupScreen({
                       value={selectedPlayer?.id}
                       disabled={!selectedTeam.players?.length}
                     >
-                      <SelectTrigger id="player-select">
+                      <SelectTrigger id="player-select" className="h-12 text-lg">
                         <SelectValue
                           placeholder={selectedTeam.players?.length ? "Who are you?" : "No players on this team"}
                         />
