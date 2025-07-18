@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Splash Screen Generator with Existing Icon</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; }
+        canvas { display: block; margin: 1rem 0; border: 1px solid #ccc; }
+        .controls { margin-bottom: 2rem; }
+        button { padding: 0.5rem 1rem; background: #4f46e5; color: white; border: none; border-radius: 0.25rem; cursor: pointer; }
+        input[type="color"] { vertical-align: middle; }
+        .splash-list { margin-top: 2rem; }
+        .splash-item { margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <h1>iOS Splash Screen Generator with Your Icon</h1>
+    <div class="controls">
+        <p>
+            <label>Background Color: 
+                <input type="color" id="bgColor" value="#ffffff">
+            </label>
+        </p>
+        <p>
+            <label>Your Icon: 
+                <input type="file" id="iconFile" accept="image/png,image/jpeg,image/svg+xml">
+            </label>
+        </p>
+        <p>
+            <label>Icon Size (% of screen width): 
+                <input type="range" id="iconSize" min="10" max="50" value="30">
+                <span id="iconSizeValue">30%</span>
+            </label>
+        </p>
+        <p>
+            <button id="generateBtn" disabled>Generate All Splash Screens</button>
+            <button id="downloadAllBtn" disabled>Download All</button>
+        </p>
+    </div>
+
+    <canvas id="canvas" width="1242" height="2688"></canvas>
+
+    <div class="splash-list" id="splashList">
+        <h2>Required Splash Screens</h2>
+    </div>
+
+    <script>
+        const splashSizes = [
+            { width: 1125, height: 2436, name: 'apple-splash-1125-2436.png', device: 'iPhone X/XS/11 Pro' },
+            { width: 1242, height: 2688, name: 'apple-splash-1242-2688.png', device: 'iPhone XS Max/11 Pro Max' },
+            { width: 828, height: 1792, name: 'apple-splash-828-1792.png', device: 'iPhone XR/11' },
+            { width: 1242, height: 2208, name: 'apple-splash-1242-2208.png', device: 'iPhone 8 Plus' },
+            { width: 750, height: 1334, name: 'apple-splash-750-1334.png', device: 'iPhone 8/SE2' },
+            { width: 1536, height: 2048, name: 'apple-splash-1536-2048.png', device: 'iPad Mini/Air' },
+            { width: 1668, height: 2224, name: 'apple-splash-1668-2224.png', device: 'iPad Pro 10.5"' },
+            { width: 1668, height: 2388, name: 'apple-splash-1668-2388.png', device: 'iPad Pro 11"' },
+            { width: 2048, height: 2732, name: 'apple-splash-2048-2732.png', device: 'iPad Pro 12.9"' }
+        ];
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const bgColorInput = document.getElementById('bgColor');
+        const iconFileInput = document.getElementById('iconFile');
+        const iconSizeInput = document.getElementById('iconSize');
+        const iconSizeValue = document.getElementById('iconSizeValue');
+        const generateBtn = document.getElementById('generateBtn');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        const splashList = document.getElementById('splashList');
+        
+        let userIcon = null;
+
+        iconSizeInput.addEventListener('input', () => {
+            iconSizeValue.textContent = `${iconSizeInput.value}%`;
+            if (userIcon) {
+                drawSplashScreen(canvas.width, canvas.height, bgColorInput.value, userIcon, iconSizeInput.value / 100);
+            }
+        });
+
+        iconFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        userIcon = img;
+                        generateBtn.disabled = false;
+                        downloadAllBtn.disabled = false;
+                        drawSplashScreen(canvas.width, canvas.height, bgColorInput.value, userIcon, iconSizeInput.value / 100);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        bgColorInput.addEventListener('input', () => {
+            if (userIcon) {
+                drawSplashScreen(canvas.width, canvas.height, bgColorInput.value, userIcon, iconSizeInput.value / 100);
+            }
+        });
+
+        function drawSplashScreen(width, height, bgColor, iconImg, iconScale) {
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw background
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw icon centered
+            if (iconImg) {
+                const iconWidth = width * iconScale;
+                const iconHeight = (iconImg.height / iconImg.width) * iconWidth;
+                const x = (width - iconWidth) / 2;
+                const y = (height - iconHeight) / 2;
+                ctx.drawImage(iconImg, x, y, iconWidth, iconHeight);
+            }
+        }
+
+        function generateSplashScreen(size) {
+            const bgColor = bgColorInput.value;
+            const iconScale = iconSizeInput.value / 100;
+            
+            drawSplashScreen(size.width, size.height, bgColor, userIcon, iconScale);
+            
+            return canvas.toDataURL('image/png');
+        }
+
+        function downloadImage(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        generateBtn.addEventListener('click', () => {
+            if (!userIcon) return;
+            
+            splashList.innerHTML = '<h2>Required Splash Screens</h2>';
+            
+            splashSizes.forEach(size => {
+                const dataUrl = generateSplashScreen(size);
+                
+                const item = document.createElement('div');
+                item.className = 'splash-item';
+                item.innerHTML = `
+                    <p>${size.name} (${size.width}x${size.height}) - ${size.device}</p>
+                    <img src="${dataUrl}" width="${size.width / 10}" height="${size.height / 10}" alt="${size.name}">
+                    <button class="download-btn" data-url="${dataUrl}" data-name="${size.name}">Download</button>
+                `;
+                splashList.appendChild(item);
+            });
+            
+            document.querySelectorAll('.download-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    downloadImage(btn.dataset.url, btn.dataset.name);
+                });
+            });
+        });
+
+        downloadAllBtn.addEventListener('click', () => {
+            if (!userIcon) return;
+            
+            splashSizes.forEach(size => {
+                const dataUrl = generateSplashScreen(size);
+                downloadImage(dataUrl, size.name);
+            });
+        });
+    </script>
+</body>
+</html>
