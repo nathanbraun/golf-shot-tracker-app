@@ -71,13 +71,13 @@ export default function ShotRecordingInput({
   const sliderRange = getSliderRange()
 
   return (
-    <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
+    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-green-700">
+        <CardTitle className="flex items-center gap-2 text-blue-700">
           <Target className="w-5 h-5" />
           Record Shot {currentShotNumber}
         </CardTitle>
-        <div className="text-sm text-green-600">
+        <div className="text-sm text-blue-600">
           From {formatDistance(lastDistance)} • Par {currentPar}
         </div>
       </CardHeader>
@@ -223,7 +223,7 @@ export default function ShotRecordingInput({
           <Button
             onClick={onRecordShot}
             disabled={!selectedPlayerName || !selectedShotType || currentDistance <= 0}
-            className="bg-green-600 hover:bg-green-700 text-white h-14 text-base font-medium"
+            className="bg-blue-600 hover:bg-blue-700 text-white h-14 text-base font-medium"
           >
             Record Shot
           </Button>
