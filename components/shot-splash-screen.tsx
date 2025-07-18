@@ -10,6 +10,7 @@ interface ShotSplashScreenProps {
   currentShotNumber: number
   lastDistance: number | null
   selectedRound?: {
+    name: string
     course?: {
       name: string
     }

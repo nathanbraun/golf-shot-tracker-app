@@ -29,6 +29,7 @@ import ShotSplashScreen from "@/components/shot-splash-screen"
 import type { useShotTracking } from "@/hooks/use-shot-tracking"
 import ShotTrackerHeader from "@/components/shot-tracker-header"
 import ShotTrackerFooter from "@/components/shot-tracker-footer"
+import TeeShotInput from "@/components/tee-shot-input"
 
 // Declare SHOT_TYPES and EMOJI_TAGS variables
 const SHOT_TYPES = ["Drive", "Approach", "Chip", "Putt", "Sand", "Recovery"]
@@ -588,346 +589,288 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Target className="w-5 h-5" />
-              {isRecordingShot ? "What happened?" : "Distance to hole"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!isRecordingShot && (
-              <div className="space-y-3 mb-4">
+        {!isRecordingShot ? (
+          <TeeShotInput
+            currentHole={currentHole}
+            currentPar={currentPar}
+            currentDistance={currentDistance}
+            distanceUnit={distanceUnit}
+            onDistanceChange={setCurrentDistance}
+            onDistanceUnitChange={setDistanceUnit}
+            onStartShot={handleStartShot}
+            onPreviousHole={handlePreviousHole}
+            onNextHole={handleContinueToNextHole}
+            canGoPrevious={currentHole > 1}
+            canGoNext={currentHole < 18}
+            getIntelligentUnit={getIntelligentUnit}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Target className="w-5 h-5" />
+                What happened?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-blue-700">
+                <strong>
+                  Hole {currentHole} (Par {currentPar}) • Shot {currentShotNumber}
+                </strong>{" "}
+                •{" "}
+                {currentShotNumber === 1 ? (
+                  <>
+                    Started from: <strong>{formatDistance(lastDistance!)}</strong>
+                  </>
+                ) : (
+                  <>
+                    <strong>{formatDistance(lastDistance!)} out</strong>
+                  </>
+                )}
+              </p>
+              <div className="space-y-2">
+                <Label>Whose shot did the team use?</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    onClick={handlePreviousHole}
-                    variant="outline"
-                    size="sm"
-                    className="text-sm bg-transparent"
-                    disabled={currentHole <= 1}
-                  >
-                    ← Previous Hole
-                  </Button>
-                  <Button
-                    onClick={handleContinueToNextHole}
-                    variant="outline"
-                    size="sm"
-                    className="text-sm bg-transparent"
-                    disabled={currentHole >= 18}
-                  >
-                    Next Hole →
-                  </Button>
+                  {PLAYERS.map((player) => (
+                    <Button
+                      key={player}
+                      variant={selectedPlayerName === player ? "default" : "outline"}
+                      onClick={() => setSelectedPlayerName(player)}
+                      className="h-12"
+                    >
+                      {player}
+                    </Button>
+                  ))}
+                  {(lastDistance || 0) <= 5 && distanceUnit === "feet" && selectedShotType === "Putt" && (
+                    <Button
+                      variant={selectedPlayerName === "Team Gimme" ? "default" : "outline"}
+                      onClick={() => setSelectedPlayerName("Team Gimme")}
+                      className="h-12 col-span-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                    >
+                      🤝 Team Gimme
+                    </Button>
+                  )}
                 </div>
               </div>
-            )}
-            {isRecordingShot ? (
-              <>
-                <p className="text-sm text-blue-700">
-                  <strong>
-                    Hole {currentHole} (Par {currentPar}) • Shot {currentShotNumber}
-                  </strong>{" "}
-                  •{" "}
-                  {currentShotNumber === 1 ? (
-                    <>
-                      Started from: <strong>{formatDistance(lastDistance!)}</strong>
-                    </>
-                  ) : (
-                    <>
-                      <strong>{formatDistance(lastDistance!)} out</strong>
-                    </>
-                  )}
-                </p>
-                <div className="space-y-2">
-                  <Label>Whose shot did the team use?</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {PLAYERS.map((player) => (
-                      <Button
-                        key={player}
-                        variant={selectedPlayerName === player ? "default" : "outline"}
-                        onClick={() => setSelectedPlayerName(player)}
-                        className="h-12"
-                      >
-                        {player}
-                      </Button>
-                    ))}
-                    {(lastDistance || 0) <= 5 && distanceUnit === "feet" && selectedShotType === "Putt" && (
-                      <Button
-                        variant={selectedPlayerName === "Team Gimme" ? "default" : "outline"}
-                        onClick={() => setSelectedPlayerName("Team Gimme")}
-                        className="h-12 col-span-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                      >
-                        🤝 Team Gimme
-                      </Button>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Shot type</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {SHOT_TYPES.map((type) => (
-                      <Button
-                        key={type}
-                        variant={selectedShotType === type ? "default" : "outline"}
-                        onClick={() => handleShotTypeChange(type)}
-                        size="sm"
-                      >
-                        {type}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                {lastDistance && lastDistance <= 30 && (
-                  <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label>Shot type</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {SHOT_TYPES.map((type) => (
                     <Button
-                      variant="default"
-                      onClick={() => handleRecordShot(true)}
-                      disabled={!selectedPlayerName || !selectedShotType}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      key={type}
+                      variant={selectedShotType === type ? "default" : "outline"}
+                      onClick={() => handleShotTypeChange(type)}
+                      size="sm"
                     >
-                      Hole Out! ⛳
+                      {type}
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleRecordShot(false, true)}
-                      disabled={!selectedPlayerName || !selectedShotType}
-                      className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                    >
-                      To Gimme 🤝
-                    </Button>
-                  </div>
-                )}
-                <div className="space-y-2">
+                  ))}
+                </div>
+              </div>
+              {lastDistance && lastDistance <= 30 && (
+                <div className="grid grid-cols-2 gap-2">
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowMoreOptions(!showMoreOptions)}
-                    className="w-full text-sm text-muted-foreground hover:text-foreground"
+                    variant="default"
+                    onClick={() => handleRecordShot(true)}
+                    disabled={!selectedPlayerName || !selectedShotType}
+                    className="bg-green-600 hover:bg-green-700 text-white"
                   >
-                    {showMoreOptions ? "Less options ↑" : "More options ↓"}
+                    Hole Out! ⛳
                   </Button>
-                  {showMoreOptions && (
-                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="space-y-2">
-                        <Label>Tag this shot (optional)</Label>
-                        <div className="flex gap-2 justify-center flex-wrap">
-                          {EMOJI_TAGS.map((emoji) => (
-                            <Button
-                              key={emoji}
-                              variant={getEmojiState(emoji) ? "default" : "outline"}
-                              onClick={() => toggleEmojiTag(emoji)}
-                              className="text-2xl h-12 w-12 p-0"
-                            >
-                              {emoji}
-                            </Button>
-                          ))}
-                        </div>
-                        {(isNut || isClutch) && (
-                          <div className="text-center text-sm text-muted-foreground">
-                            Selected: {isNut && "💦"}
-                            {isClutch && "🛟"}
-                          </div>
-                        )}
+                  <Button
+                    variant="outline"
+                    onClick={() => handleRecordShot(false, true)}
+                    disabled={!selectedPlayerName || !selectedShotType}
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                  >
+                    To Gimme 🤝
+                  </Button>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowMoreOptions(!showMoreOptions)}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground"
+                >
+                  {showMoreOptions ? "Less options ↑" : "More options ↓"}
+                </Button>
+                {showMoreOptions && (
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="space-y-2">
+                      <Label>Tag this shot (optional)</Label>
+                      <div className="flex gap-2 justify-center flex-wrap">
+                        {EMOJI_TAGS.map((emoji) => (
+                          <Button
+                            key={emoji}
+                            variant={getEmojiState(emoji) ? "default" : "outline"}
+                            onClick={() => toggleEmojiTag(emoji)}
+                            className="text-2xl h-12 w-12 p-0"
+                          >
+                            {emoji}
+                          </Button>
+                        ))}
                       </div>
-                      {(!lastDistance || lastDistance > 30) && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            variant="default"
-                            onClick={() => handleRecordShot(true)}
-                            disabled={!selectedPlayerName || !selectedShotType}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            Hole Out! ⛳
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => handleRecordShot(false, true)}
-                            disabled={!selectedPlayerName || !selectedShotType}
-                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                          >
-                            To Gimme 🤝
-                          </Button>
+                      {(isNut || isClutch) && (
+                        <div className="text-center text-sm text-muted-foreground">
+                          Selected: {isNut && "💦"}
+                          {isClutch && "🛟"}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="distance">Distance remaining for Shot {currentShotNumber + 1}</Label>
-                    <Button variant="ghost" size="sm" onClick={() => setUseSlider(!useSlider)} className="text-xs h-6">
-                      {useSlider ? "Type" : "Slide"}
-                    </Button>
-                  </div>
-                  {useSlider && selectedShotType ? (
-                    <div className="space-y-3">
-                      <div className="px-2">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-muted-foreground">
-                            {getSliderRange(selectedShotType, lastDistance || undefined).min} {distanceUnit}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-medium">
-                              {currentDistance || getSliderRange(selectedShotType, lastDistance || undefined).default}
-                            </span>
-                            <div className="flex gap-1">
-                              <Button
-                                type="button"
-                                variant={distanceUnit === "yards" ? "default" : "ghost"}
-                                size="sm"
-                                className="h-6 px-2 text-xs"
-                                onClick={() => {
-                                  if (distanceUnit === "feet") {
-                                    const currentValue = Number.parseInt(currentDistance) || 0
-                                    const yardsValue = Math.round(currentValue / 3)
-                                    setCurrentDistance(yardsValue.toString())
-                                    setDistanceUnit("yards")
-                                  }
-                                }}
-                              >
-                                yd
-                              </Button>
-                              <Button
-                                type="button"
-                                variant={distanceUnit === "feet" ? "default" : "ghost"}
-                                size="sm"
-                                className="h-6 px-2 text-xs"
-                                onClick={() => {
-                                  if (distanceUnit === "yards") {
-                                    const currentValue = Number.parseInt(currentDistance) || 0
-                                    const feetValue = currentValue * 3
-                                    setCurrentDistance(feetValue.toString())
-                                    setDistanceUnit("feet")
-                                  }
-                                }}
-                              >
-                                ft
-                              </Button>
-                            </div>
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            {getSliderRange(selectedShotType, lastDistance || undefined).max} {distanceUnit}
-                          </span>
-                        </div>
-                        <Slider
-                          value={[
-                            Number.parseInt(currentDistance) ||
-                              getSliderRange(selectedShotType, lastDistance || undefined).default,
-                          ]}
-                          onValueChange={(value) => setCurrentDistance(value[0].toString())}
-                          min={getSliderRange(selectedShotType, lastDistance || undefined).min}
-                          max={getSliderRange(selectedShotType, lastDistance || undefined).max}
-                          step={getSliderRange(selectedShotType, lastDistance || undefined).step}
-                          className="w-full"
-                        />
+                    {(!lastDistance || lastDistance > 30) && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="default"
+                          onClick={() => handleRecordShot(true)}
+                          disabled={!selectedPlayerName || !selectedShotType}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Hole Out! ⛳
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleRecordShot(false, true)}
+                          disabled={!selectedPlayerName || !selectedShotType}
+                          className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                        >
+                          To Gimme 🤝
+                        </Button>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <div className="flex-1 relative">
-                        <Input
-                          id="distance"
-                          type="number"
-                          placeholder={`Enter ${distanceUnit}`}
-                          value={currentDistance}
-                          onChange={(e) => {
-                            setCurrentDistance(e.target.value)
-                            if (e.target.value) {
-                              setDistanceUnit(getIntelligentUnit(e.target.value))
-                            }
-                          }}
-                          className="text-lg pr-16"
-                        />
-                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                          <Button
-                            type="button"
-                            variant={distanceUnit === "yards" ? "default" : "ghost"}
-                            size="sm"
-                            className="h-6 px-2 text-xs"
-                            onClick={() => setDistanceUnit("yards")}
-                          >
-                            yd
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={distanceUnit === "feet" ? "default" : "ghost"}
-                            size="sm"
-                            className="h-6 px-2 text-xs"
-                            onClick={() => setDistanceUnit("feet")}
-                          >
-                            ft
-                          </Button>
-                        </div>
-                      </div>
-                      <Button onClick={handleStartShot} disabled={!currentDistance} className="whitespace-nowrap">
-                        Start Shot
-                      </Button>
-                    </div>
-                  )}
-                  {currentDistance && (
-                    <div className="text-sm text-muted-foreground">
-                      Remaining distance: {currentDistance} {distanceUnit}
-                    </div>
-                  )}
-                </div>
-                <Button
-                  onClick={() => handleRecordShot()}
-                  disabled={!selectedPlayerName || !selectedShotType || !currentDistance}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white text-lg flex items-center justify-center gap-2"
-                >
-                  Record Shot
-                </Button>
-              </>
-            ) : (
-              <>
-                <div className="flex gap-2">
-                  <div className="flex-1 relative">
-                    <Input
-                      id="distance"
-                      type="number"
-                      placeholder={`Enter ${distanceUnit}`}
-                      value={currentDistance}
-                      onChange={(e) => {
-                        setCurrentDistance(e.target.value)
-                        if (e.target.value) {
-                          setDistanceUnit(getIntelligentUnit(e.target.value))
-                        }
-                      }}
-                      className="text-lg pr-16"
-                    />
-                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                      <Button
-                        type="button"
-                        variant={distanceUnit === "yards" ? "default" : "ghost"}
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => setDistanceUnit("yards")}
-                      >
-                        yd
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={distanceUnit === "feet" ? "default" : "ghost"}
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={() => setDistanceUnit("feet")}
-                      >
-                        ft
-                      </Button>
-                    </div>
-                  </div>
-                  <Button onClick={handleStartShot} disabled={!currentDistance} className="whitespace-nowrap">
-                    Start Shot
-                  </Button>
-                </div>
-                {currentDistance && (
-                  <div className="text-sm text-muted-foreground">
-                    Distance: {currentDistance} {distanceUnit}
+                    )}
                   </div>
                 )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="distance">Distance remaining for Shot {currentShotNumber + 1}</Label>
+                  <Button variant="ghost" size="sm" onClick={() => setUseSlider(!useSlider)} className="text-xs h-6">
+                    {useSlider ? "Type" : "Slide"}
+                  </Button>
+                </div>
+                {useSlider && selectedShotType ? (
+                  <div className="space-y-3">
+                    <div className="px-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">
+                          {getSliderRange(selectedShotType, lastDistance || undefined).min} {distanceUnit}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-medium">
+                            {currentDistance || getSliderRange(selectedShotType, lastDistance || undefined).default}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              variant={distanceUnit === "yards" ? "default" : "ghost"}
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => {
+                                if (distanceUnit === "feet") {
+                                  const currentValue = Number.parseInt(currentDistance) || 0
+                                  const yardsValue = Math.round(currentValue / 3)
+                                  setCurrentDistance(yardsValue.toString())
+                                  setDistanceUnit("yards")
+                                }
+                              }}
+                            >
+                              yd
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={distanceUnit === "feet" ? "default" : "ghost"}
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => {
+                                if (distanceUnit === "yards") {
+                                  const currentValue = Number.parseInt(currentDistance) || 0
+                                  const feetValue = currentValue * 3
+                                  setCurrentDistance(feetValue.toString())
+                                  setDistanceUnit("feet")
+                                }
+                              }}
+                            >
+                              ft
+                            </Button>
+                          </div>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {getSliderRange(selectedShotType, lastDistance || undefined).max} {distanceUnit}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[
+                          Number.parseInt(currentDistance) ||
+                            getSliderRange(selectedShotType, lastDistance || undefined).default,
+                        ]}
+                        onValueChange={(value) => setCurrentDistance(value[0].toString())}
+                        min={getSliderRange(selectedShotType, lastDistance || undefined).min}
+                        max={getSliderRange(selectedShotType, lastDistance || undefined).max}
+                        step={getSliderRange(selectedShotType, lastDistance || undefined).step}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                      <Input
+                        id="distance"
+                        type="number"
+                        placeholder={`Enter ${distanceUnit}`}
+                        value={currentDistance}
+                        onChange={(e) => {
+                          setCurrentDistance(e.target.value)
+                          if (e.target.value) {
+                            setDistanceUnit(getIntelligentUnit(e.target.value))
+                          }
+                        }}
+                        className="text-lg pr-16"
+                      />
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+                        <Button
+                          type="button"
+                          variant={distanceUnit === "yards" ? "default" : "ghost"}
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setDistanceUnit("yards")}
+                        >
+                          yd
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={distanceUnit === "feet" ? "default" : "ghost"}
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => setDistanceUnit("feet")}
+                        >
+                          ft
+                        </Button>
+                      </div>
+                    </div>
+                    <Button onClick={handleStartShot} disabled={!currentDistance} className="whitespace-nowrap">
+                      Start Shot
+                    </Button>
+                  </div>
+                )}
+                {currentDistance && (
+                  <div className="text-sm text-muted-foreground">
+                    Remaining distance: {currentDistance} {distanceUnit}
+                  </div>
+                )}
+              </div>
+              <Button
+                onClick={() => handleRecordShot()}
+                disabled={!selectedPlayerName || !selectedShotType || !currentDistance}
+                className="w-full bg-green-600 hover:bg-green-700 text-white text-lg flex items-center justify-center gap-2"
+              >
+                Record Shot
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
