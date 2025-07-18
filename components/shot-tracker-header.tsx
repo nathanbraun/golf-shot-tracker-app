@@ -41,34 +41,36 @@ export default function ShotTrackerHeader({
 }: ShotTrackerHeaderProps) {
   return (
     <Card>
-      <CardHeader className="text-center pb-2">
-        <div className="flex items-center justify-between">
+      <CardHeader className="text-center pb-2 px-2">
+        <div className="flex items-center justify-between gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={onViewFeed}
-            className="flex items-center gap-2 text-xs bg-transparent"
+            className="flex items-center gap-1 text-xs bg-transparent px-2 py-1 h-8 min-w-0 shrink-0"
           >
             <Trophy className="w-3 h-3" />
-            Feed
+            <span className="hidden xs:inline">Feed</span>
           </Button>
-          <CardTitle className="flex items-center gap-2 text-green-700">
-            <Flag className="w-5 h-5" />
-            Golf Scramble Tracker
+
+          <CardTitle className="flex items-center gap-2 text-green-700 text-base sm:text-lg flex-1 min-w-0">
+            <Flag className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+            <span className="truncate">Golf Scramble Tracker</span>
           </CardTitle>
+
           <Button
             variant="outline"
             size="sm"
             onClick={onViewSummary}
-            className="flex items-center gap-2 text-xs bg-transparent"
+            className="flex items-center gap-1 text-xs bg-transparent px-2 py-1 h-8 min-w-0 shrink-0"
           >
             <BarChart3 className="w-3 h-3" />
-            Stats
+            <span className="hidden xs:inline">Stats</span>
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div className="flex justify-center items-center gap-4 text-sm">
+      <CardContent className="pt-0 px-2">
+        <div className="flex justify-center items-center gap-3 text-sm flex-wrap">
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground">Holes:</span>
             <Badge variant="secondary">{totalScore.completedHoles}/18</Badge>
