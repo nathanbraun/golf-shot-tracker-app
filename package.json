@@ -9,9 +9,12 @@
     "start": "next start"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=18",
+    "npm": "please-use-pnpm",
+    "yarn": "please-use-pnpm",
     "pnpm": ">=8.0.0"
   },
+  "packageManager": "pnpm@8.15.5",
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "1.2.2",
