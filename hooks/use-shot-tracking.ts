@@ -45,6 +45,16 @@ interface ExistingDataInfo {
   lastActivity: Date
 }
 
+// Recovery data for refresh detection
+interface RefreshRecoveryData {
+  roundName: string
+  teamName: string
+  playerName: string
+  currentHole: number
+  totalShots: number
+  lastActivity: string
+}
+
 export function useShotTracking() {
   // Startup state
   const [isSetupComplete, setIsSetupComplete] = useState(false)
@@ -56,6 +66,10 @@ export function useShotTracking() {
   const [showDataConflictDialog, setShowDataConflictDialog] = useState(false)
   const [existingDataInfo, setExistingDataInfo] = useState<ExistingDataInfo | null>(null)
   const [conflictAction, setConflictAction] = useState<DataConflictAction | null>(null)
+
+  // Refresh recovery handling
+  const [showRefreshRecovery, setShowRefreshRecovery] = useState(false)
+  const [refreshRecoveryData, setRefreshRecoveryData] = useState<RefreshRecoveryData | null>(null)
 
   // Course data from database
   const [courseHoles, setCourseHoles] = useState<CourseHole[]>([])
@@ -96,6 +110,104 @@ export function useShotTracking() {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
   const [pendingShots, setPendingShots] = useState<LocalShot[]>([]) // For offline support
 
+  // Local storage keys
+  const STORAGE_KEYS = {
+    ROUND_ID: "golf_tracker_round_id",
+    TEAM_ID: "golf_tracker_team_id",
+    PLAYER_ID: "golf_tracker_player_id",
+    LAST_ACTIVITY: "golf_tracker_last_activity",
+  }
+
+  // Save tracking state to localStorage
+  const saveTrackingState = () => {
+    if (selectedRound && selectedTeam && selectedPlayer) {
+      localStorage.setItem(STORAGE_KEYS.ROUND_ID, selectedRound.id)
+      localStorage.setItem(STORAGE_KEYS.TEAM_ID, selectedTeam.id)
+      localStorage.setItem(STORAGE_KEYS.PLAYER_ID, selectedPlayer.id)
+      localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY, new Date().toISOString())
+    }
+  }
+
+  // Clear tracking state from localStorage
+  const clearTrackingState = () => {
+    Object.values(STORAGE_KEYS).forEach((key) => {
+      localStorage.removeItem(key)
+    })
+  }
+
+  // Check for existing tracking state on load
+  const checkForRefreshRecovery = async () => {
+    const roundId = localStorage.getItem(STORAGE_KEYS.ROUND_ID)
+    const teamId = localStorage.getItem(STORAGE_KEYS.TEAM_ID)
+    const playerId = localStorage.getItem(STORAGE_KEYS.PLAYER_ID)
+    const lastActivity = localStorage.getItem(STORAGE_KEYS.LAST_ACTIVITY)
+
+    if (roundId && teamId && playerId && lastActivity) {
+      try {
+        // Load the data to verify it still exists
+        const [roundsData, playersData] = await Promise.all([roundsApi.getRounds(), playersApi.getPlayers()])
+
+        const round = roundsData.find((r) => r.id === roundId)
+        const player = playersData.find((p) => p.id === playerId)
+
+        if (round && player) {
+          const teamsData = await teamsApi.getTeamsByRound(roundId)
+          const team = teamsData.find((t) => t.id === teamId)
+
+          if (team) {
+            // Check if there are any shots for this team/round
+            const existingShots = await shotsApi.getShotsByTeamAndRound(teamId, roundId)
+
+            if (existingShots.length > 0) {
+              const lastActivityDate = new Date(lastActivity)
+              const timeSinceLastActivity = Date.now() - lastActivityDate.getTime()
+              const hoursAgo = Math.floor(timeSinceLastActivity / (1000 * 60 * 60))
+
+              let lastActivityText = "Just now"
+              if (hoursAgo >= 24) {
+                const daysAgo = Math.floor(hoursAgo / 24)
+                lastActivityText = `${daysAgo} day${daysAgo > 1 ? "s" : ""} ago`
+              } else if (hoursAgo >= 1) {
+                lastActivityText = `${hoursAgo} hour${hoursAgo > 1 ? "s" : ""} ago`
+              } else {
+                const minutesAgo = Math.floor(timeSinceLastActivity / (1000 * 60))
+                if (minutesAgo >= 1) {
+                  lastActivityText = `${minutesAgo} minute${minutesAgo > 1 ? "s" : ""} ago`
+                }
+              }
+
+              const completedHoles = [...new Set(existingShots.map((shot) => shot.hole_number))]
+              const currentHole = Math.max(...completedHoles)
+
+              setRefreshRecoveryData({
+                roundName: round.name,
+                teamName: team.name,
+                playerName: player.name,
+                currentHole,
+                totalShots: existingShots.length,
+                lastActivity: lastActivityText,
+              })
+
+              // Store the selections for potential recovery
+              setSelectedRound(round)
+              setSelectedTeam(team)
+              setSelectedPlayer(player)
+
+              setShowRefreshRecovery(true)
+              return true // Found recovery data
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error checking for refresh recovery:", error)
+      }
+    }
+
+    // Clear invalid/old data
+    clearTrackingState()
+    return false // No recovery data found
+  }
+
   // Load startup data
   useEffect(() => {
     loadStartupData()
@@ -104,14 +216,39 @@ export function useShotTracking() {
   const loadStartupData = async () => {
     setLoadingStartup(true)
     try {
-      const [playersData, roundsData] = await Promise.all([playersApi.getPlayers(), roundsApi.getRounds()])
+      // First check for refresh recovery
+      const hasRecoveryData = await checkForRefreshRecovery()
 
-      setPlayers(playersData)
-      setRounds(roundsData.filter((r) => r.status === "upcoming" || r.status === "in_progress"))
+      if (!hasRecoveryData) {
+        // Load normal startup data
+        const [playersData, roundsData] = await Promise.all([playersApi.getPlayers(), roundsApi.getRounds()])
+
+        setPlayers(playersData)
+        setRounds(roundsData.filter((r) => r.status === "upcoming" || r.status === "in_progress"))
+      }
     } catch (error) {
       console.error("Error loading startup data:", error)
     }
     setLoadingStartup(false)
+  }
+
+  const handleRefreshRecoveryContinue = async () => {
+    setShowRefreshRecovery(false)
+    if (selectedRound && selectedTeam && selectedPlayer) {
+      await loadCourseData(selectedRound.course_id)
+      await loadShotsFromSupabase("continue")
+      setIsSetupComplete(true)
+    }
+  }
+
+  const handleRefreshRecoveryStartOver = () => {
+    setShowRefreshRecovery(false)
+    clearTrackingState()
+    setSelectedRound(null)
+    setSelectedTeam(null)
+    setSelectedPlayer(null)
+    // Load fresh startup data
+    loadStartupData()
   }
 
   const handleRoundSelect = async (round: Round) => {
@@ -352,6 +489,9 @@ export function useShotTracking() {
       }
 
       await shotsApi.createShot(supabaseShot)
+
+      // Update last activity after successful save
+      saveTrackingState()
     } catch (error) {
       console.error("Error saving shot to Supabase:", error)
       setPendingShots((prev) => [...prev, shot])
@@ -387,6 +527,9 @@ export function useShotTracking() {
       }
 
       await holeCompletionsApi.upsertCompletion(completion)
+
+      // Update last activity after successful save
+      saveTrackingState()
     } catch (error) {
       console.error("Error creating hole completion:", error)
     }
@@ -403,6 +546,9 @@ export function useShotTracking() {
       team: selectedTeam.name,
       round: selectedRound.name,
     })
+
+    // Save tracking state
+    saveTrackingState()
 
     await loadCourseData(selectedRound.course_id)
 
@@ -434,6 +580,7 @@ export function useShotTracking() {
   }
 
   const handleBackToSetup = () => {
+    clearTrackingState()
     setIsSetupComplete(false)
     setShots([])
     setCourseHoles([])
@@ -836,6 +983,8 @@ export function useShotTracking() {
     loadingStartup,
     showDataConflictDialog,
     existingDataInfo,
+    showRefreshRecovery,
+    refreshRecoveryData,
     currentView,
     currentDistance,
     selectedPlayerName,
@@ -891,6 +1040,8 @@ export function useShotTracking() {
     handleTeamSelect,
     handleStartTracking,
     handleDataConflictResolution,
+    handleRefreshRecoveryContinue,
+    handleRefreshRecoveryStartOver,
     handleBackToSetup,
     getIntelligentUnit,
     getSliderRange,
