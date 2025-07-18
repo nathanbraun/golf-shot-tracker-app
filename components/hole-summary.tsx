@@ -1,9 +1,11 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Flag, BarChart3, Target, Users, MapPin } from "lucide-react"
+import { Flag, BarChart3, Target, Users, MapPin, Trophy, TrendingUp, RefreshCw } from "lucide-react"
+import { holeCompletionsApi, type TeamHoleCompletion } from "@/lib/supabase"
 
 interface HoleSummaryProps {
   currentHole: number
@@ -30,10 +32,15 @@ interface HoleSummaryProps {
     distance: number
   }>
   selectedRound?: {
+    id: string
     name: string
     course?: {
       name: string
     }
+  } | null
+  selectedTeam?: {
+    id: string
+    name: string
   } | null
   getScoreInfo: (
     hole: number,
@@ -59,12 +66,16 @@ export default function HoleSummary({
   shots,
   courseHoles,
   selectedRound,
+  selectedTeam,
   getScoreInfo,
   getTotalScore,
   formatDistance,
   getDistanceColor,
   onContinueToNextHole,
 }: HoleSummaryProps) {
+  const [completions, setCompletions] = useState<TeamHoleCompletion[]>([])
+  const [loading, setLoading] = useState(false)
+
   const currentHoleShots = shots.filter((shot) => shot.hole === currentHole)
   const scoreInfo = getScoreInfo(currentHole, currentPar)
   const totalScore = getTotalScore()
@@ -78,6 +89,91 @@ export default function HoleSummary({
     },
     {} as Record<string, number>,
   )
+
+  // Load live feed data
+  const loadCompletions = async () => {
+    if (!selectedRound?.id) return
+
+    try {
+      setLoading(true)
+      const data = await holeCompletionsApi.getCompletionsByRound(selectedRound.id)
+      setCompletions(data)
+    } catch (error) {
+      console.error("Error loading completions:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadCompletions()
+  }, [selectedRound?.id])
+
+  // Get how other teams performed on this specific hole
+  const getHoleComparisons = () => {
+    const holeCompletions = completions.filter((c) => c.hole_number === currentHole)
+    return holeCompletions
+      .filter((c) => c.team_id !== selectedTeam?.id) // Exclude current team
+      .map((completion) => ({
+        teamName: completion.team?.name || "Unknown Team",
+        totalShots: completion.total_shots,
+        scoreToPar: completion.score_to_par,
+        scoreName: getScoreName(completion.score_to_par),
+        scoreColor: getScoreColor(completion.score_to_par),
+      }))
+      .sort((a, b) => a.totalShots - b.totalShots) // Best scores first
+  }
+
+  // Get overall team standings
+  const getTeamStandings = () => {
+    const teamStats = completions.reduce(
+      (acc, completion) => {
+        const teamId = completion.team_id
+        if (!acc[teamId]) {
+          acc[teamId] = {
+            team: completion.team,
+            holesCompleted: 0,
+            totalScore: 0,
+          }
+        }
+        acc[teamId].holesCompleted++
+        acc[teamId].totalScore += completion.score_to_par
+        return acc
+      },
+      {} as Record<string, any>,
+    )
+
+    return Object.values(teamStats)
+      .filter((team: any) => team.team?.id !== selectedTeam?.id) // Exclude current team
+      .sort((a: any, b: any) => {
+        // Sort by total score, then by holes completed
+        if (a.totalScore !== b.totalScore) return a.totalScore - b.totalScore
+        return b.holesCompleted - a.holesCompleted
+      })
+      .slice(0, 5) // Top 5 teams
+  }
+
+  const getScoreName = (scoreToPar: number) => {
+    if (scoreToPar <= -3) return "Albatross"
+    if (scoreToPar === -2) return "Eagle"
+    if (scoreToPar === -1) return "Birdie"
+    if (scoreToPar === 0) return "Par"
+    if (scoreToPar === 1) return "Bogey"
+    if (scoreToPar === 2) return "Double"
+    return `+${scoreToPar}`
+  }
+
+  const getScoreColor = (scoreToPar: number) => {
+    if (scoreToPar <= -2) return "text-purple-600 bg-purple-50"
+    if (scoreToPar === -1) return "text-green-600 bg-green-50"
+    if (scoreToPar === 0) return "text-gray-600 bg-gray-50"
+    if (scoreToPar === 1) return "text-yellow-600 bg-yellow-50"
+    if (scoreToPar === 2) return "text-orange-600 bg-orange-50"
+    return "text-red-600 bg-red-50"
+  }
+
+  const holeComparisons = getHoleComparisons()
+  const teamStandings = getTeamStandings()
 
   return (
     <div className="min-h-screen bg-green-50 p-4">
@@ -99,7 +195,7 @@ export default function HoleSummary({
                 Par {currentPar} • {currentHoleShots.length} shots
               </div>
               {scoreInfo && (
-                <div className={`text-xl font-bold mt-2 ${scoreInfo.scoreColor.replace("text-", "text-white")}`}>
+                <div className={`text-xl font-bold mt-2 text-white`}>
                   {scoreInfo.scoreName}
                   {scoreInfo.scoreToPar !== 0 && (
                     <span className="ml-2">
@@ -139,6 +235,75 @@ export default function HoleSummary({
             </div>
           </CardContent>
         </Card>
+
+        {/* How other teams did on this hole */}
+        {holeComparisons.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-lg">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5" />
+                  Hole {currentHole} Comparison
+                </div>
+                <Button variant="ghost" size="sm" onClick={loadCompletions} disabled={loading} className="h-6 w-6 p-0">
+                  <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {holeComparisons.map((team, index) => (
+                  <div key={team.teamName} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white border text-xs font-bold">
+                        {index + 1}
+                      </div>
+                      <div className="font-medium text-sm">{team.teamName}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={`text-xs ${team.scoreColor} border-0`}>{team.scoreName}</Badge>
+                      <div className="text-sm font-medium">{team.totalShots}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Overall team standings */}
+        {teamStandings.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <TrendingUp className="w-5 h-5" />
+                Leaderboard
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {teamStandings.map((team: any, index: number) => (
+                  <div key={team.team?.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-white border text-xs font-bold">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">{team.team?.name}</div>
+                        <div className="text-xs text-muted-foreground">{team.holesCompleted} holes</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-sm font-bold ${team.totalScore <= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {team.totalScore > 0 ? `+${team.totalScore}` : team.totalScore}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
