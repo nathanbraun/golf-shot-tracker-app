@@ -14,7 +14,7 @@ interface ShotTrackerHeaderProps {
     completedHoles: number
     totalToPar: number
   }
-  shots: Array<{
+  shots?: Array<{
     id: string
     hole: number
     par: number
@@ -48,8 +48,9 @@ export default function ShotTrackerHeader({
   onViewFeed,
   onViewSummary,
 }: ShotTrackerHeaderProps) {
-  // Provide default values if totalScore is undefined
+  // Provide default values if totalScore or shots are undefined
   const safeScore = totalScore || { completedHoles: 0, totalToPar: 0 }
+  const safeShots = shots || []
 
   return (
     <Card>
@@ -89,7 +90,7 @@ export default function ShotTrackerHeader({
             <span>holes</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="font-medium">{shots.length}</span>
+            <span className="font-medium">{safeShots.length}</span>
             <span>shots</span>
           </div>
           <div className="flex items-center gap-1">
