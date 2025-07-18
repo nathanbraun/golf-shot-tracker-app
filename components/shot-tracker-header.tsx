@@ -1,9 +1,8 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Flag, Trophy, BarChart3, Loader2 } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { BarChart3, Trophy, Loader2 } from "lucide-react"
 
 interface ShotTrackerHeaderProps {
   currentHole: number
@@ -12,24 +11,11 @@ interface ShotTrackerHeaderProps {
   isRecordingShot: boolean
   totalScore?: {
     completedHoles: number
-    totalToPar: number
+    totalStrokes: number
+    totalPar: number
+    scoreRelativeToPar: number
   }
-  shots?: Array<{
-    id: string
-    hole: number
-    par: number
-    shotNumber: number
-    player: string
-    shotType: string
-    startDistance: number
-    endDistance: number
-    calculatedDistance: number
-    made: boolean
-    isNut: boolean
-    isClutch: boolean
-    isGimme: boolean
-    timestamp: Date
-  }>
+  shots?: Array<any>
   isSyncing: boolean
   loadingCourseData: boolean
   onViewFeed: () => void
@@ -48,64 +34,66 @@ export default function ShotTrackerHeader({
   onViewFeed,
   onViewSummary,
 }: ShotTrackerHeaderProps) {
-  // Provide default values if totalScore or shots are undefined
-  const safeScore = totalScore || { completedHoles: 0, totalToPar: 0 }
   const safeShots = shots || []
+  const safeTotalScore = totalScore || {
+    completedHoles: 0,
+    totalStrokes: 0,
+    totalPar: 0,
+    scoreRelativeToPar: 0,
+  }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-2 px-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onViewFeed}
-            className="shrink-0 h-8 px-2 py-1 text-xs bg-transparent"
-          >
-            <Trophy className="w-3 h-3 mr-1" />
-            <span className="hidden xs:inline">Feed</span>
-          </Button>
-
-          <div className="flex-1 min-w-0">
-            <CardTitle className="flex items-center justify-center gap-2 text-green-700 text-base sm:text-lg truncate">
-              <Flag className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-              <span className="truncate">Golf Scramble Tracker</span>
-            </CardTitle>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onViewSummary}
-            className="shrink-0 h-8 px-2 py-1 text-xs bg-transparent"
-          >
-            <BarChart3 className="w-3 h-3 mr-1" />
-            <span className="hidden xs:inline">Stats</span>
-          </Button>
-        </div>
-
-        <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground flex-wrap">
-          <div className="flex items-center gap-1">
-            <span className="font-medium">{safeScore.completedHoles}</span>
-            <span>holes</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="font-medium">{safeShots.length}</span>
-            <span>shots</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Badge variant={safeScore.totalToPar <= 0 ? "default" : "destructive"} className="text-xs px-1.5 py-0.5">
-              {safeScore.totalToPar > 0 ? `+${safeScore.totalToPar}` : safeScore.totalToPar}
-            </Badge>
-          </div>
-          {(isSyncing || loadingCourseData) && (
-            <div className="flex items-center gap-1 text-blue-600">
-              <Loader2 className="w-3 h-3 animate-spin" />
-              <span className="text-xs">syncing...</span>
+    <div className="space-y-4">
+      {/* Status indicators */}
+      {(isSyncing || loadingCourseData) && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-center gap-2 text-blue-700">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">{loadingCourseData ? "Loading course data..." : "Syncing shots..."}</span>
             </div>
-          )}
-        </div>
-      </CardHeader>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Score summary */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-700">
+                {safeTotalScore.scoreRelativeToPar > 0 ? "+" : ""}
+                {safeTotalScore.scoreRelativeToPar}
+              </div>
+              <div className="text-xs text-muted-foreground">{safeTotalScore.completedHoles} holes</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-semibold">{safeShots.length}</div>
+              <div className="text-xs text-muted-foreground">total shots</div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onViewFeed}
+                className="flex items-center gap-1 bg-transparent"
+              >
+                <Trophy className="w-4 h-4" />
+                Feed
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onViewSummary}
+                className="flex items-center gap-1 bg-transparent"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Stats
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
