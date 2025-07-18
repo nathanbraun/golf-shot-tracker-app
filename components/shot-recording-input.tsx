@@ -227,9 +227,9 @@ export default function ShotRecordingInput({
 
             {useSlider ? (
               <div className="space-y-3">
-                {/* Distance Display - MOVED ABOVE SLIDER */}
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-700">
+                {/* MOVED: Distance Display is now above the slider */}
+                <div className="text-center pb-2">
+                  <div className="text-3xl font-bold text-green-800">
                     {currentDistance || range.default} {distanceUnit}
                   </div>
                 </div>
