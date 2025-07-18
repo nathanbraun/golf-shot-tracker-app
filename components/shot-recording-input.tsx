@@ -1,241 +1,354 @@
 "use client"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { User, Target, ArrowDown, ChevronDown, ChevronUp, ToggleLeft, ToggleRight } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { Target, ArrowRight } from "lucide-react"
+
+const SHOT_TYPES = ["Drive", "Approach", "Chip", "Putt", "Sand", "Recovery"]
+const EMOJI_TAGS = ["💦", "🛟"]
 
 interface ShotRecordingInputProps {
-  currentShot: number
-  players: Array<{ id: string; name: string }>
-  selectedPlayer: string | null
-  selectedShotType: string | null
-  shotTypes: Array<{ id: string; name: string; emoji: string }>
-  isCloseToHole: boolean
-  showMoreOptions: boolean
-  selectedEmojis: string[]
-  availableEmojis: Array<{ emoji: string; label: string }>
-  distanceRemaining: string
+  currentHole: number
+  currentPar: number
+  currentShotNumber: number
+  lastDistance: number
+  selectedPlayerName: string
+  selectedShotType: string
+  currentDistance: string
   distanceUnit: "yards" | "feet"
   useSlider: boolean
-  sliderValue: number[]
-  onPlayerSelect: (playerId: string) => void
-  onShotTypeSelect: (shotType: string) => void
-  onHoleOut: () => void
-  onToGimme: () => void
-  onToggleMoreOptions: () => void
-  onEmojiToggle: (emoji: string) => void
-  onDistanceRemainingChange: (distance: string) => void
+  isNut: boolean
+  isClutch: boolean
+  showMoreOptions: boolean
+  players: string[]
+  onPlayerSelect: (player: string) => void
+  onShotTypeChange: (type: string) => void
+  onDistanceChange: (distance: string) => void
   onDistanceUnitChange: (unit: "yards" | "feet") => void
   onToggleSlider: () => void
-  onSliderChange: (value: number[]) => void
-  onRecordShot: () => void
+  onToggleMoreOptions: () => void
+  onToggleEmojiTag: (emoji: string) => void
+  onRecordShot: (made?: boolean, isGimme?: boolean) => void
+  onStartShot: () => void
+  formatDistance: (distance: number) => string
   getIntelligentUnit: (distance: string) => "yards" | "feet"
+  getSliderRange: (
+    shotType: string,
+    lastDistance?: number,
+  ) => {
+    min: number
+    max: number
+    default: number
+    step: number
+  }
+  getEmojiState: (emoji: string) => boolean
 }
 
 export default function ShotRecordingInput({
-  currentShot,
-  players,
-  selectedPlayer,
+  currentHole,
+  currentPar,
+  currentShotNumber,
+  lastDistance,
+  selectedPlayerName,
   selectedShotType,
-  shotTypes,
-  isCloseToHole,
-  showMoreOptions,
-  selectedEmojis,
-  availableEmojis,
-  distanceRemaining,
+  currentDistance,
   distanceUnit,
   useSlider,
-  sliderValue,
+  isNut,
+  isClutch,
+  showMoreOptions,
+  players,
   onPlayerSelect,
-  onShotTypeSelect,
-  onHoleOut,
-  onToGimme,
-  onToggleMoreOptions,
-  onEmojiToggle,
-  onDistanceRemainingChange,
+  onShotTypeChange,
+  onDistanceChange,
   onDistanceUnitChange,
   onToggleSlider,
-  onSliderChange,
+  onToggleMoreOptions,
+  onToggleEmojiTag,
   onRecordShot,
+  onStartShot,
+  formatDistance,
   getIntelligentUnit,
+  getSliderRange,
+  getEmojiState,
 }: ShotRecordingInputProps) {
   return (
     <Card>
-      <CardContent className="p-0">
-        {/* Blue result section */}
-        <div className="bg-blue-50 border-b border-blue-200 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <User className="w-4 h-4 text-blue-600" />
-            <h3 className="font-medium text-blue-800">Shot {currentShot} Result</h3>
+      <CardContent className="space-y-6 pt-6">
+        {/* Last Shot Section */}
+        <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-2 text-blue-800 font-medium">
+            <Target className="w-4 h-4" />
+            Shot {currentShotNumber} Result
           </div>
 
-          {/* Player Selection */}
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              {players.map((player) => (
+            <div className="space-y-2">
+              <Label>Whose shot did the team use?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {players.map((player) => (
+                  <Button
+                    key={player}
+                    variant={selectedPlayerName === player ? "default" : "outline"}
+                    onClick={() => onPlayerSelect(player)}
+                    className="h-12"
+                  >
+                    {player}
+                  </Button>
+                ))}
+                {lastDistance <= 5 && distanceUnit === "feet" && selectedShotType === "Putt" && (
+                  <Button
+                    variant={selectedPlayerName === "Team Gimme" ? "default" : "outline"}
+                    onClick={() => onPlayerSelect("Team Gimme")}
+                    className="h-12 col-span-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                  >
+                    🤝 Team Gimme
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Shot type</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {SHOT_TYPES.map((type) => (
+                  <Button
+                    key={type}
+                    variant={selectedShotType === type ? "default" : "outline"}
+                    onClick={() => onShotTypeChange(type)}
+                    size="sm"
+                  >
+                    {type}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {lastDistance <= 30 && (
+              <div className="grid grid-cols-2 gap-2">
                 <Button
-                  key={player.id}
-                  onClick={() => onPlayerSelect(player.id)}
-                  variant={selectedPlayer === player.id ? "default" : "outline"}
-                  className="h-12 text-sm"
+                  variant="default"
+                  onClick={() => onRecordShot(true)}
+                  disabled={!selectedPlayerName || !selectedShotType}
+                  className="bg-green-600 hover:bg-green-700 text-white"
                 >
-                  {player.name}
+                  Hole Out! ⛳
                 </Button>
-              ))}
-              {isCloseToHole && (
                 <Button
-                  onClick={() => onPlayerSelect("team-gimme")}
-                  variant={selectedPlayer === "team-gimme" ? "default" : "outline"}
-                  className="h-12 text-sm col-span-2"
+                  variant="outline"
+                  onClick={() => onRecordShot(false, true)}
+                  disabled={!selectedPlayerName || !selectedShotType}
+                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
                 >
-                  Team Gimme
+                  To Gimme 🤝
                 </Button>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleMoreOptions}
+                className="w-full text-sm text-muted-foreground hover:text-foreground"
+              >
+                {showMoreOptions ? "Less options ↑" : "More options ↓"}
+              </Button>
+              {showMoreOptions && (
+                <div className="space-y-4 p-4 bg-white rounded-lg border">
+                  <div className="space-y-2">
+                    <Label>Tag this shot (optional)</Label>
+                    <div className="flex gap-2 justify-center flex-wrap">
+                      {EMOJI_TAGS.map((emoji) => (
+                        <Button
+                          key={emoji}
+                          variant={getEmojiState(emoji) ? "default" : "outline"}
+                          onClick={() => onToggleEmojiTag(emoji)}
+                          className="text-2xl h-12 w-12 p-0"
+                        >
+                          {emoji}
+                        </Button>
+                      ))}
+                    </div>
+                    {(isNut || isClutch) && (
+                      <div className="text-center text-sm text-muted-foreground">
+                        Selected: {isNut && "💦"}
+                        {isClutch && "🛟"}
+                      </div>
+                    )}
+                  </div>
+                  {lastDistance > 30 && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant="default"
+                        onClick={() => onRecordShot(true)}
+                        disabled={!selectedPlayerName || !selectedShotType}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        Hole Out! ⛳
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => onRecordShot(false, true)}
+                        disabled={!selectedPlayerName || !selectedShotType}
+                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                      >
+                        To Gimme 🤝
+                      </Button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-
-            {/* Shot Type Selection */}
-            <div className="grid grid-cols-3 gap-2">
-              {shotTypes.map((type) => (
-                <Button
-                  key={type.id}
-                  onClick={() => onShotTypeSelect(type.id)}
-                  variant={selectedShotType === type.id ? "default" : "outline"}
-                  className="h-12 text-xs flex flex-col gap-1"
-                >
-                  <span className="text-lg">{type.emoji}</span>
-                  <span>{type.name}</span>
-                </Button>
-              ))}
-            </div>
-
-            {/* Quick Actions */}
-            {isCloseToHole && (
-              <div className="grid grid-cols-2 gap-2">
-                <Button onClick={onHoleOut} className="h-12 bg-green-600 hover:bg-green-700">
-                  🏌️ Hole Out
-                </Button>
-                <Button onClick={onToGimme} className="h-12 bg-yellow-600 hover:bg-yellow-700">
-                  👌 To Gimme
-                </Button>
-              </div>
-            )}
-
-            {/* More Options */}
-            <Collapsible open={showMoreOptions} onOpenChange={onToggleMoreOptions}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between">
-                  More options
-                  {showMoreOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="space-y-3">
-                <div className="grid grid-cols-4 gap-2">
-                  {availableEmojis.map((item) => (
-                    <Button
-                      key={item.emoji}
-                      onClick={() => onEmojiToggle(item.emoji)}
-                      variant={selectedEmojis.includes(item.emoji) ? "default" : "outline"}
-                      className="h-12 text-lg"
-                      title={item.label}
-                    >
-                      {item.emoji}
-                    </Button>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
           </div>
         </div>
 
-        {/* Arrow separator */}
-        <div className="flex justify-center py-2 bg-gray-50">
-          <ArrowDown className="w-4 h-4 text-gray-400" />
+        {/* Separator with Arrow */}
+        <div className="flex items-center gap-4">
+          <Separator className="flex-1" />
+          <ArrowRight className="w-5 h-5 text-muted-foreground" />
+          <Separator className="flex-1" />
         </div>
 
-        {/* Green setup section */}
-        <div className="bg-green-50 border-t border-green-200 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Target className="w-4 h-4 text-green-600" />
-            <h3 className="font-medium text-green-800">Shot {currentShot + 1} Setup</h3>
+        {/* Next Shot Section */}
+        <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
+          <div className="flex items-center gap-2 text-green-800 font-medium">
+            <Target className="w-4 h-4" />
+            Shot {currentShotNumber + 1} Setup
           </div>
 
           <div className="space-y-3">
-            {/* Distance Input Toggle */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-green-700">Distance remaining</span>
-              <Button onClick={onToggleSlider} variant="ghost" size="sm" className="h-8 px-2">
-                {useSlider ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                {useSlider ? "Slider" : "Text"}
-              </Button>
-            </div>
-
-            {useSlider ? (
-              <div className="space-y-2">
-                <Slider value={sliderValue} onValueChange={onSliderChange} max={500} step={5} className="w-full" />
-                <div className="flex justify-between text-xs text-green-600">
-                  <span>0</span>
-                  <span className="font-medium">
-                    {sliderValue[0]} {distanceUnit}
-                  </span>
-                  <span>500</span>
-                </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="distance">Distance remaining</Label>
+                <Button variant="ghost" size="sm" onClick={onToggleSlider} className="text-xs h-6">
+                  {useSlider ? "Type" : "Slide"}
+                </Button>
               </div>
-            ) : (
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Input
-                    type="number"
-                    placeholder={`Enter ${distanceUnit}`}
-                    value={distanceRemaining}
-                    onChange={(e) => {
-                      onDistanceRemainingChange(e.target.value)
-                      if (e.target.value) {
-                        onDistanceUnitChange(getIntelligentUnit(e.target.value))
-                      }
-                    }}
-                    className="pr-16 bg-white"
-                  />
-                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                    <Button
-                      type="button"
-                      variant={distanceUnit === "yards" ? "default" : "ghost"}
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => onDistanceUnitChange("yards")}
-                    >
-                      yd
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={distanceUnit === "feet" ? "default" : "ghost"}
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => onDistanceUnitChange("feet")}
-                    >
-                      ft
-                    </Button>
+              {useSlider && selectedShotType ? (
+                <div className="space-y-3">
+                  <div className="px-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">
+                        {getSliderRange(selectedShotType, lastDistance).min} {distanceUnit}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-medium">
+                          {currentDistance || getSliderRange(selectedShotType, lastDistance).default}
+                        </span>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            variant={distanceUnit === "yards" ? "default" : "ghost"}
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => {
+                              if (distanceUnit === "feet") {
+                                const currentValue = Number.parseInt(currentDistance) || 0
+                                const yardsValue = Math.round(currentValue / 3)
+                                onDistanceChange(yardsValue.toString())
+                                onDistanceUnitChange("yards")
+                              }
+                            }}
+                          >
+                            yd
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={distanceUnit === "feet" ? "default" : "ghost"}
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => {
+                              if (distanceUnit === "yards") {
+                                const currentValue = Number.parseInt(currentDistance) || 0
+                                const feetValue = currentValue * 3
+                                onDistanceChange(feetValue.toString())
+                                onDistanceUnitChange("feet")
+                              }
+                            }}
+                          >
+                            ft
+                          </Button>
+                        </div>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {getSliderRange(selectedShotType, lastDistance).max} {distanceUnit}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[
+                        Number.parseInt(currentDistance) || getSliderRange(selectedShotType, lastDistance).default,
+                      ]}
+                      onValueChange={(value) => onDistanceChange(value[0].toString())}
+                      min={getSliderRange(selectedShotType, lastDistance).min}
+                      max={getSliderRange(selectedShotType, lastDistance).max}
+                      step={getSliderRange(selectedShotType, lastDistance).step}
+                      className="w-full"
+                    />
                   </div>
                 </div>
-              </div>
-            )}
-
-            {(distanceRemaining || sliderValue[0] > 0) && (
-              <div className="text-sm text-green-600">
-                Distance: {useSlider ? sliderValue[0] : distanceRemaining} {distanceUnit}
-              </div>
-            )}
-
-            <Button
-              onClick={onRecordShot}
-              disabled={!selectedPlayer || !selectedShotType}
-              className="w-full h-12 text-lg"
-            >
-              Record Shot
-            </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Input
+                      id="distance"
+                      type="number"
+                      placeholder={`Enter ${distanceUnit}`}
+                      value={currentDistance}
+                      onChange={(e) => {
+                        onDistanceChange(e.target.value)
+                        if (e.target.value) {
+                          onDistanceUnitChange(getIntelligentUnit(e.target.value))
+                        }
+                      }}
+                      className="text-lg pr-16 bg-white"
+                    />
+                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+                      <Button
+                        type="button"
+                        variant={distanceUnit === "yards" ? "default" : "ghost"}
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => onDistanceUnitChange("yards")}
+                      >
+                        yd
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={distanceUnit === "feet" ? "default" : "ghost"}
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => onDistanceUnitChange("feet")}
+                      >
+                        ft
+                      </Button>
+                    </div>
+                  </div>
+                  <Button onClick={onStartShot} disabled={!currentDistance} className="whitespace-nowrap">
+                    Start Shot
+                  </Button>
+                </div>
+              )}
+              {currentDistance && (
+                <div className="text-sm text-green-600">
+                  Remaining distance: {currentDistance} {distanceUnit}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        <Button
+          onClick={() => onRecordShot()}
+          disabled={!selectedPlayerName || !selectedShotType || !currentDistance}
+          className="w-full bg-green-600 hover:bg-green-700 text-white text-lg flex items-center justify-center gap-2"
+        >
+          Record Shot
+        </Button>
       </CardContent>
     </Card>
   )
