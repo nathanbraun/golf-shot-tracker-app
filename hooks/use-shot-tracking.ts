@@ -501,7 +501,7 @@ export function useShotTracking() {
     let defaultUnit: "yards" | "feet" = "yards"
     if (par === 3) {
       if (shotNumber === 1) {
-        defaultShotType = "Drive"
+        defaultShotType = "Approach" // Changed from "Drive" to "Approach" for par 3s
         defaultUnit = "yards"
       } else {
         defaultShotType = "Putt"
