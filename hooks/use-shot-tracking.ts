@@ -309,13 +309,29 @@ export function useShotTracking() {
     return hole ? hole.distance : 400
   }
 
+  // Get the last player who hit a shot on this hole
+  const getLastPlayerOnHole = (holeNumber: number): string => {
+    const holeShots = shots.filter((shot) => shot.hole === holeNumber).sort((a, b) => b.shotNumber - a.shotNumber)
+    if (holeShots.length > 0) {
+      return holeShots[0].player
+    }
+    // If no shots on this hole yet, use the selected player or first team player
+    return selectedPlayer?.name || selectedTeam?.players?.[0]?.name || "Unknown"
+  }
+
   const saveShotToSupabase = async (shot: LocalShot) => {
     if (!selectedTeam || !selectedRound) return
 
     try {
-      const playerInTeam = selectedTeam.players?.find((p) => p.name === shot.player)
+      // Handle "Team Gimme" by using the last player who hit a shot
+      let actualPlayerName = shot.player
+      if (shot.player === "Team Gimme") {
+        actualPlayerName = getLastPlayerOnHole(shot.hole)
+      }
+
+      const playerInTeam = selectedTeam.players?.find((p) => p.name === actualPlayerName)
       if (!playerInTeam) {
-        console.error("Player not found in team:", shot.player)
+        console.error("Player not found in team:", actualPlayerName)
         return
       }
 
@@ -332,7 +348,7 @@ export function useShotTracking() {
         made: shot.made,
         is_nut: shot.isNut,
         is_clutch: shot.isClutch,
-        is_gimme: shot.isGimme, // NEW: Save gimme flag to database
+        is_gimme: shot.isGimme || shot.player === "Team Gimme", // Mark as gimme if it was a team gimme
       }
 
       await shotsApi.createShot(supabaseShot)
@@ -571,13 +587,22 @@ export function useShotTracking() {
       const endDistance = isHoleOut ? 0 : isToGimme ? GIMME_DISTANCE : Number.parseInt(currentDistance) || 0
       const calculatedDistance = isHoleOut ? lastDistance : lastDistance - endDistance
 
+      // For Team Gimme, use the last player who hit a shot and mark as gimme
+      let actualPlayerName = selectedPlayerName
+      let isGimmeShot = false
+
+      if (selectedPlayerName === "Team Gimme") {
+        actualPlayerName = getLastPlayerOnHole(currentHole)
+        isGimmeShot = true
+      }
+
       // Create the main shot
       const newShot: LocalShot = {
         id: Date.now().toString(),
         hole: currentHole,
         par: currentPar,
         shotNumber: currentShotNumber,
-        player: selectedPlayerName,
+        player: actualPlayerName, // Use actual player name, not "Team Gimme"
         shotType: selectedShotType,
         startDistance: lastDistance,
         endDistance: endDistance,
@@ -585,7 +610,7 @@ export function useShotTracking() {
         made: isHoleOut,
         isNut: isNut,
         isClutch: isClutch,
-        isGimme: false, // The main shot is never a gimme
+        isGimme: isGimmeShot, // Mark as gimme if it was a team gimme
         timestamp: new Date(),
       }
 
@@ -610,7 +635,7 @@ export function useShotTracking() {
           hole: currentHole,
           par: currentPar,
           shotNumber: currentShotNumber + 1,
-          player: selectedPlayerName, // NEW: Assign to same player, not "Team Gimme"
+          player: actualPlayerName, // Use actual player name
           shotType: "Putt",
           startDistance: GIMME_DISTANCE,
           endDistance: 0,
@@ -618,7 +643,7 @@ export function useShotTracking() {
           made: true,
           isNut: false,
           isClutch: false,
-          isGimme: true, // NEW: Mark this as a gimme shot
+          isGimme: true, // Mark this as a gimme shot
           timestamp: new Date(),
         }
 
@@ -892,5 +917,6 @@ export function useShotTracking() {
     createHoleCompletion,
     getParForHole,
     getDistanceForHole,
+    getLastPlayerOnHole,
   }
 }
