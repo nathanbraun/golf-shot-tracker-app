@@ -74,9 +74,6 @@ export default function ShotRecordingInput({
   const sliderRange = getSliderRange(selectedShotType, lastDistance)
   const currentDistanceNum = Number.parseInt(currentDistance) || 0
 
-  // Show hole out/gimme options when close to the hole
-  const isCloseToHole = lastDistance <= 50 || (lastDistance <= 100 && selectedShotType === "Putt")
-
   return (
     <div className="space-y-4">
       {/* Blue box - Record what happened on shot N */}
@@ -163,8 +160,8 @@ export default function ShotRecordingInput({
                   )}
                 </div>
 
-                {/* Hole Out / Gimme Options - only show when close */}
-                {isCloseToHole && selectedPlayerName && selectedShotType && (
+                {/* Hole Out / Gimme Options - always show when player and shot type selected */}
+                {selectedPlayerName && selectedShotType && (
                   <div className="space-y-3 border-t pt-4">
                     <Label className="text-base font-medium">Quick finish options</Label>
                     <div className="grid grid-cols-2 gap-3">
@@ -176,8 +173,7 @@ export default function ShotRecordingInput({
                       </Button>
                       <Button
                         onClick={() => onRecordShot(false, true)} // To gimme
-                        disabled={lastDistance > 5}
-                        className="bg-green-500 hover:bg-green-600 text-white h-12 text-sm font-medium disabled:opacity-50"
+                        className="bg-green-500 hover:bg-green-600 text-white h-12 text-sm font-medium"
                       >
                         🤝 To Gimme
                       </Button>
@@ -191,14 +187,14 @@ export default function ShotRecordingInput({
       </Card>
 
       {/* Arrow indicator */}
-      {selectedPlayerName && selectedShotType && !isCloseToHole && (
+      {selectedPlayerName && selectedShotType && (
         <div className="flex justify-center">
           <ArrowDown className="w-6 h-6 text-gray-400" />
         </div>
       )}
 
       {/* Green box - Distance remaining after shot N (sets up shot N+1) */}
-      {selectedPlayerName && selectedShotType && !isCloseToHole && (
+      {selectedPlayerName && selectedShotType && (
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-2 text-green-700">
