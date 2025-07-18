@@ -2,21 +2,9 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, MapPin, Trophy, BarChart3, Loader2, Flag } from "lucide-react"
+import { Trophy, BarChart3, Loader2, Flag } from "lucide-react"
 
 interface ShotTrackerHeaderProps {
-  selectedRound?: {
-    name: string
-    course?: {
-      name: string
-    }
-  } | null
-  selectedTeam?: {
-    name: string
-  } | null
-  selectedPlayer?: {
-    name: string
-  } | null
   currentHole: number
   currentPar: number
   currentShotNumber: number
@@ -28,15 +16,11 @@ interface ShotTrackerHeaderProps {
   shots: any[]
   isSyncing: boolean
   loadingCourseData: boolean
-  onBackToSetup: () => void
   onViewFeed: () => void
   onViewSummary: () => void
 }
 
 export default function ShotTrackerHeader({
-  selectedRound,
-  selectedTeam,
-  selectedPlayer,
   currentHole,
   currentPar,
   currentShotNumber,
@@ -45,7 +29,6 @@ export default function ShotTrackerHeader({
   shots,
   isSyncing,
   loadingCourseData,
-  onBackToSetup,
   onViewFeed,
   onViewSummary,
 }: ShotTrackerHeaderProps) {
@@ -58,26 +41,6 @@ export default function ShotTrackerHeader({
             Golf Scramble Tracker
           </CardTitle>
         </div>
-
-        {/* Main round info */}
-        {selectedRound && (
-          <div className="text-center space-y-2">
-            <div className="text-lg font-semibold text-gray-800">{selectedRound.name}</div>
-            {selectedRound.course && (
-              <div className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                <MapPin className="w-3 h-3" />
-                {selectedRound.course.name}
-              </div>
-            )}
-
-            {/* Team and player info */}
-            {selectedTeam && selectedPlayer && (
-              <div className="text-sm text-muted-foreground">
-                {selectedPlayer.name} • {selectedTeam.name}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Current hole status */}
         <div className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-gray-200">
@@ -109,11 +72,6 @@ export default function ShotTrackerHeader({
 
         {/* Action buttons */}
         <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-gray-200">
-          <Button onClick={onBackToSetup} variant="outline" size="sm" className="text-xs h-7 px-2 bg-transparent">
-            <ArrowLeft className="w-3 h-3 mr-1" />
-            Setup
-          </Button>
-
           <Button onClick={onViewFeed} variant="outline" size="sm" className="text-xs h-7 px-2 bg-transparent">
             <Trophy className="w-3 h-3 mr-1" />
             Live

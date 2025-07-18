@@ -28,6 +28,7 @@ import LiveFeed from "@/components/live-feed"
 import ShotSplashScreen from "@/components/shot-splash-screen"
 import type { useShotTracking } from "@/hooks/use-shot-tracking"
 import ShotTrackerHeader from "@/components/shot-tracker-header"
+import ShotTrackerFooter from "@/components/shot-tracker-footer"
 
 // Declare SHOT_TYPES and EMOJI_TAGS variables
 const SHOT_TYPES = ["Drive", "Approach", "Chip", "Putt", "Sand", "Recovery"]
@@ -549,9 +550,6 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     <div className="min-h-screen bg-green-50 p-4">
       <div className="max-w-md mx-auto space-y-4">
         <ShotTrackerHeader
-          selectedRound={selectedRound}
-          selectedTeam={selectedTeam}
-          selectedPlayer={selectedPlayer}
           currentHole={currentHole}
           currentPar={currentPar}
           currentShotNumber={currentShotNumber}
@@ -560,7 +558,6 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
           shots={shots}
           isSyncing={isSyncing}
           loadingCourseData={loadingCourseData}
-          onBackToSetup={handleBackToSetup}
           onViewFeed={() => setCurrentView("feed")}
           onViewSummary={() => setCurrentView("summary")}
         />
@@ -1002,6 +999,12 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+        <ShotTrackerFooter
+          selectedRound={selectedRound}
+          selectedTeam={selectedTeam}
+          selectedPlayer={selectedPlayer}
+          onBackToSetup={handleBackToSetup}
+        />
       </div>
     </div>
   )
