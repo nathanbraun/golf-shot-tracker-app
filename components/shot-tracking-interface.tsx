@@ -338,26 +338,6 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     return (
       <div className="min-h-screen bg-green-50 p-4">
         <div className="max-w-md mx-auto space-y-4">
-          <Card>
-            <CardHeader className="text-center pb-4">
-              <div className="flex items-center justify-between">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBackToSetup}
-                  className="flex items-center gap-2 bg-transparent"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Setup
-                </Button>
-                <CardTitle className="flex items-center justify-center gap-2 text-green-700">
-                  <Flag className="w-6 h-6" />
-                  Golf Scramble Tracker
-                </CardTitle>
-                <div className="w-16" />
-              </div>
-            </CardHeader>
-          </Card>
           <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
             <CardContent className="py-4">
               <div className="text-center">
@@ -410,42 +390,14 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
                 <Button
                   onClick={handleContinueFromSplash}
                   size="lg"
-                  className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg flex items-center gap-2"
+                  className="bg-green-600 hover:bg-green-700 text-white px-12 py-6 text-xl flex items-center gap-3"
                 >
-                  <Play className="w-5 h-5" />
+                  <Play className="w-6 h-6" />
                   Continue to Record Shot
                 </Button>
               </div>
             </CardContent>
           </Card>
-          {shots.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <History className="w-5 h-5" />
-                  Recent Shots
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {shots.slice(0, 3).map((shot) => (
-                    <div key={shot.id} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">
-                          H{shot.hole}-{shot.shotNumber}
-                        </Badge>
-                        <span className="font-medium">{shot.player}</span>
-                        <span className="text-muted-foreground">{shot.shotType}</span>
-                      </div>
-                      <Badge className={`text-white ${getDistanceColor(shot.calculatedDistance)}`}>
-                        {formatDistance(shot.calculatedDistance)}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     )
