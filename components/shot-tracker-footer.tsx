@@ -1,7 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, MapPin, Users } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, MapPin, Users, Calendar } from "lucide-react"
 
 interface ShotTrackerFooterProps {
   selectedRound?: {
@@ -26,31 +28,41 @@ export default function ShotTrackerFooter({
   onBackToSetup,
 }: ShotTrackerFooterProps) {
   return (
-    <div className="mt-6 pt-4 border-t border-gray-200 bg-gray-50 rounded-lg p-4">
-      <div className="flex items-center justify-between">
-        <Button onClick={onBackToSetup} variant="outline" size="sm" className="text-xs h-8 px-3 bg-white">
-          <ArrowLeft className="w-3 h-3 mr-1" />
-          Setup
-        </Button>
-
-        <div className="text-center text-xs text-muted-foreground space-y-1">
-          {selectedRound && <div className="font-medium text-gray-700">{selectedRound.name}</div>}
-          {selectedRound?.course && (
-            <div className="flex items-center justify-center gap-1">
-              <MapPin className="w-3 h-3" />
-              {selectedRound.course.name}
+    <Card className="bg-gray-50 border-gray-200">
+      <CardContent className="py-3">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar className="w-3 h-3" />
+              <span>{selectedRound?.name || "No Round Selected"}</span>
             </div>
-          )}
-          {selectedTeam && selectedPlayer && (
-            <div className="flex items-center justify-center gap-1">
-              <Users className="w-3 h-3" />
-              {selectedPlayer.name} • {selectedTeam.name}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBackToSetup}
+              className="flex items-center gap-1 text-xs h-6 px-2"
+            >
+              <ArrowLeft className="w-3 h-3" />
+              Setup
+            </Button>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <MapPin className="w-3 h-3" />
+                <span>{selectedRound?.course?.name || "No Course"}</span>
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Users className="w-3 h-3" />
+                <span>{selectedTeam?.name || "No Team"}</span>
+              </div>
             </div>
-          )}
+            <Badge variant="outline" className="text-xs">
+              {selectedPlayer?.name || "No Player"}
+            </Badge>
+          </div>
         </div>
-
-        <div className="w-16" />
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
