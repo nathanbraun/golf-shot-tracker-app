@@ -86,9 +86,9 @@ export default function StartupScreen({
                     <SelectTrigger id="round-select" className="h-12 text-lg">
                       <SelectValue placeholder="Choose a round..." />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       {rounds.map((round) => (
-                        <SelectItem key={round.id} value={round.id}>
+                        <SelectItem key={round.id} value={round.id} className="py-3 px-4 text-lg">
                           {round.name} ({round.course?.name})
                         </SelectItem>
                       ))}
@@ -109,9 +109,9 @@ export default function StartupScreen({
                           placeholder={teams.length > 0 ? "Choose your team..." : "No teams for this round"}
                         />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-[300px]">
                         {teams.map((team) => (
-                          <SelectItem key={team.id} value={team.id}>
+                          <SelectItem key={team.id} value={team.id} className="py-3 px-4 text-lg">
                             {team.name}
                           </SelectItem>
                         ))}
@@ -137,9 +137,9 @@ export default function StartupScreen({
                           placeholder={selectedTeam.players?.length ? "Who are you?" : "No players on this team"}
                         />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-[300px]">
                         {selectedTeam.players?.map((player) => (
-                          <SelectItem key={player.id} value={player.id}>
+                          <SelectItem key={player.id} value={player.id} className="py-3 px-4 text-lg">
                             {player.name}
                           </SelectItem>
                         ))}
