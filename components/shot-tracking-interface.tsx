@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { BarChart3, ArrowLeft, Edit, Trash2, Save, Trophy } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { History, BarChart3, ArrowLeft, Edit, Trash2, Save, Bug, Trophy } from "lucide-react"
 import SummaryPage from "@/components/summary-page"
 import CourseManager from "@/components/course-manager"
 import LiveFeed from "@/components/live-feed"
@@ -74,13 +77,10 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     handleSaveEditedShot,
     handleDeleteShot,
     formatDistance,
-    formatLastDistance,
     getDistanceColor,
     getScoreInfo,
     getTotalScore,
   } = props
-
-  const totalScore = getTotalScore() // Declare totalScore variable
 
   if (currentView === "courses") {
     return (
@@ -332,7 +332,7 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
         currentShotNumber={currentShotNumber}
         lastDistance={lastDistance}
         selectedRound={selectedRound}
-        formatLastDistance={formatLastDistance}
+        formatDistance={formatDistance}
         onContinue={handleContinueFromSplash}
       />
     )
@@ -356,6 +356,7 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     )
   }
 
+  const totalScore = getTotalScore()
   const PLAYERS = selectedTeam?.players?.map((p) => p.name) || ["Brusda", "Nate", "Mikey", "Strauss"]
 
   return (
@@ -366,67 +367,162 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
           currentPar={currentPar}
           currentShotNumber={currentShotNumber}
           isRecordingShot={isRecordingShot}
-          totalScore={totalScore} // Corrected totalScore variable usage
-          selectedRound={selectedRound}
-          selectedTeam={selectedTeam}
-          selectedPlayer={selectedPlayer}
+          totalScore={totalScore}
+          shots={shots}
           isSyncing={isSyncing}
-          onBackToSetup={handleBackToSetup}
-          onViewSummary={() => setCurrentView("summary")}
+          loadingCourseData={loadingCourseData}
           onViewFeed={() => setCurrentView("feed")}
+          onViewSummary={() => setCurrentView("summary")}
         />
+
+        <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+          <CardContent className="py-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold">Hole {currentHole}</div>
+              <div className="text-green-100 text-sm">
+                Par {currentPar} • Shot {isRecordingShot ? currentShotNumber : currentShotNumber}
+                {lastDistance && <span className="ml-2">• {formatDistance(lastDistance)} remaining</span>}
+              </div>
+              {selectedRound?.course && <div className="text-green-100 text-xs mt-1">{selectedRound.course.name}</div>}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Round completion banner */}
+        {currentHole === 18 && shots.filter((shot) => shot.hole === 18).length > 0 && (
+          <Card className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-2 border-yellow-400">
+            <CardContent className="py-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold">🏆 Round Complete!</div>
+                <div className="text-yellow-100 text-sm">18 holes finished • {shots.length} total shots</div>
+                <div className="text-yellow-100 text-xs mt-1">Check the live feed to see how you compare!</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {!isRecordingShot ? (
           <TeeShotInput
+            currentHole={currentHole}
+            currentPar={currentPar}
             currentDistance={currentDistance}
             distanceUnit={distanceUnit}
-            useSlider={useSlider}
-            currentPar={currentPar}
-            currentShotNumber={currentShotNumber}
-            lastDistance={lastDistance}
-            formatLastDistance={formatLastDistance}
             onDistanceChange={setCurrentDistance}
             onDistanceUnitChange={setDistanceUnit}
-            onUseSliderChange={setUseSlider}
             onStartShot={handleStartShot}
+            onPreviousHole={handlePreviousHole}
+            onNextHole={handleContinueToNextHole}
+            canGoPrevious={currentHole > 1}
+            canGoNext={currentHole < 18}
             getIntelligentUnit={getIntelligentUnit}
           />
         ) : (
           <ShotRecordingInput
+            currentHole={currentHole}
+            currentPar={currentPar}
+            currentShotNumber={currentShotNumber}
+            lastDistance={lastDistance!}
             selectedPlayerName={selectedPlayerName}
             selectedShotType={selectedShotType}
             currentDistance={currentDistance}
             distanceUnit={distanceUnit}
             useSlider={useSlider}
-            lastDistance={lastDistance}
             isNut={isNut}
             isClutch={isClutch}
             showMoreOptions={showMoreOptions}
             players={PLAYERS}
-            shotTypes={SHOT_TYPES}
-            emojiTags={EMOJI_TAGS}
             onPlayerSelect={setSelectedPlayerName}
             onShotTypeChange={handleShotTypeChange}
             onDistanceChange={setCurrentDistance}
             onDistanceUnitChange={setDistanceUnit}
-            onUseSliderChange={setUseSlider}
-            onToggleEmojiTag={toggleEmojiTag}
+            onToggleSlider={() => setUseSlider(!useSlider)}
             onToggleMoreOptions={() => setShowMoreOptions(!showMoreOptions)}
+            onToggleEmojiTag={toggleEmojiTag}
             onRecordShot={handleRecordShot}
+            onStartShot={handleStartShot}
+            formatDistance={formatDistance}
+            getIntelligentUnit={getIntelligentUnit}
             getSliderRange={getSliderRange}
             getEmojiState={getEmojiState}
           />
         )}
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <History className="w-5 h-5" />
+              Shot History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[300px] w-full rounded-md border">
+              <div className="space-y-2 p-3">
+                {shots.length === 0 ? (
+                  <div className="text-center text-sm text-muted-foreground">No shots recorded yet.</div>
+                ) : (
+                  shots.map((shot) => (
+                    <div
+                      key={shot.id}
+                      className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded hover:bg-gray-100 transition-colors cursor-pointer"
+                      onClick={() => handleEditShot(shot)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          H{shot.hole}-{shot.shotNumber}
+                        </Badge>
+                        <span className="font-medium">{shot.isGimme ? "Gimme" : shot.player}</span>
+                        <span className="text-muted-foreground">{shot.shotType}</span>
+                        {shot.isNut && "💦"}
+                        {shot.isClutch && "🛟"}
+                      </div>
+                      <Badge className={`text-white ${getDistanceColor(shot.calculatedDistance)}`}>
+                        {shot.isGimme ? "Gimme" : formatDistance(shot.calculatedDistance)}
+                      </Badge>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Debug Panel */}
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="item-1">
+            <AccordionTrigger>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Bug className="w-4 h-4" />
+                Debug Info
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <pre className="text-xs bg-gray-100 p-2 rounded-md overflow-x-auto">
+                {JSON.stringify(
+                  {
+                    loadingCourseData,
+                    selectedRound: selectedRound?.name,
+                    selectedTeam: selectedTeam?.name,
+                    selectedPlayer: selectedPlayer?.name,
+                    courseHolesCount: courseHoles.length,
+                    currentHole,
+                    currentPar,
+                    currentDistance,
+                    lastDistance,
+                    isRecordingShot,
+                    hole1Data: courseHoles.find((h) => h.hole_number === 1),
+                  },
+                  null,
+                  2,
+                )}
+              </pre>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
         <ShotTrackerFooter
-          shots={shots}
-          currentHole={currentHole}
-          courseHoles={courseHoles}
-          onEditShot={handleEditShot}
-          onPreviousHole={handlePreviousHole}
-          formatDistance={formatDistance}
-          getDistanceColor={getDistanceColor}
-          getScoreInfo={getScoreInfo}
+          selectedRound={selectedRound}
+          selectedTeam={selectedTeam}
+          selectedPlayer={selectedPlayer}
+          onBackToSetup={handleBackToSetup}
         />
       </div>
     </div>

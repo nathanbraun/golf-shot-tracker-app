@@ -294,15 +294,13 @@ export default function ShotRecordingInput({
                     value={currentDistance}
                     onChange={(e) => {
                       onDistanceChange(e.target.value)
-                      if (e.target.value) {
-                        onDistanceUnitChange(getIntelligentUnit(e.target.value))
-                      }
+                      // The automatic unit change logic has been removed from here
                     }}
                     className="text-lg h-14"
                   />
                   <Button
                     variant="outline"
-                    onClick={() => onDistanceUnitChange(getIntelligentUnit(currentDistance))}
+                    onClick={() => onDistanceUnitChange(distanceUnit === "yards" ? "feet" : "yards")}
                     className="h-14 px-4 text-base"
                   >
                     {distanceUnit}

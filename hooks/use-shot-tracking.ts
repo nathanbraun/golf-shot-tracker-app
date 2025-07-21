@@ -14,7 +14,7 @@ import {
   type CourseHole,
 } from "@/lib/supabase"
 
-const GIMME_DISTANCE = 3 // feet
+const GIMME_DISTANCE = 1 // yards (equivalent to 3 feet)
 
 // Local shot interface for the UI
 interface LocalShot {
@@ -24,15 +24,14 @@ interface LocalShot {
   shotNumber: number
   player: string
   shotType: string
-  startDistance: number
-  endDistance: number
-  calculatedDistance: number
+  startDistance: number // Stored in yards
+  endDistance: number // Stored in yards
+  calculatedDistance: number // Stored in yards
   made: boolean
   isNut: boolean
   isClutch: boolean
-  isGimme: boolean // NEW: Track if this is a gimme shot
+  isGimme: boolean
   timestamp: Date
-  distanceUnit?: "yards" | "feet" // NEW: Track the unit used for this distance
 }
 
 // Data conflict resolution options
@@ -89,8 +88,7 @@ export function useShotTracking() {
   const [selectedPlayerName, setSelectedPlayerName] = useState<string>("")
   const [selectedShotType, setShotType] = useState<string>("")
   const [shots, setShots] = useState<LocalShot[]>([])
-  const [lastDistance, setLastDistance] = useState<number | null>(null)
-  const [lastDistanceUnit, setLastDistanceUnit] = useState<"yards" | "feet">("yards") // NEW: Track unit for last distance
+  const [lastDistance, setLastDistance] = useState<number | null>(null) // Always in yards
   const [isRecordingShot, setIsRecordingShot] = useState(false)
   const [showSplashScreen, setShowSplashScreen] = useState(false)
   const [currentHole, setCurrentHole] = useState<number>(1)
@@ -316,9 +314,8 @@ export function useShotTracking() {
           console.log("DEBUG: Setting up hole 1:", hole1)
           setCurrentHole(1)
           setCurrentPar(hole1.par)
-          setCurrentDistance(hole1.distance.toString())
+          setCurrentDistance(hole1.distance.toString()) // This is the tee shot distance, assumed yards
           setDistanceUnit("yards")
-          setLastDistanceUnit("yards")
           setCurrentShotNumber(1)
           setLastDistance(null)
           setIsRecordingShot(false)
@@ -367,7 +364,6 @@ export function useShotTracking() {
           setCurrentDistance(hole1.distance.toString())
         }
         setLastDistance(null)
-        setLastDistanceUnit("yards")
         setIsRecordingShot(false)
         setShowSplashScreen(false)
         setLastSyncTime(new Date())
@@ -389,9 +385,8 @@ export function useShotTracking() {
         made: shot.made,
         isNut: shot.is_nut,
         isClutch: shot.is_clutch,
-        isGimme: shot.is_gimme, // NEW: Load gimme flag from database
+        isGimme: shot.is_gimme,
         timestamp: new Date(shot.created_at),
-        distanceUnit: shot.end_distance < 50 ? "feet" : "yards", // Infer unit based on distance
       }))
 
       setShots(localShots)
@@ -416,7 +411,6 @@ export function useShotTracking() {
             setCurrentDistance(nextHoleData.distance.toString())
           }
           setLastDistance(null)
-          setLastDistanceUnit("yards")
           setIsRecordingShot(false)
           setShowSplashScreen(false)
         } else {
@@ -427,8 +421,7 @@ export function useShotTracking() {
           setCurrentHole(lastCompletedHole)
           setCurrentShotNumber(lastShot.shotNumber + 1)
           setCurrentPar(getParForHole(lastCompletedHole))
-          setLastDistance(lastShot.endDistance)
-          setLastDistanceUnit(lastShot.distanceUnit || (lastShot.endDistance < 50 ? "feet" : "yards"))
+          setLastDistance(lastShot.endDistance) // This is in yards from DB
           setCurrentDistance("")
           setIsRecordingShot(false)
           setShowSplashScreen(true) // Show splash to continue from last shot
@@ -596,7 +589,6 @@ export function useShotTracking() {
     setCurrentPar(4)
     setCurrentDistance("")
     setLastDistance(null)
-    setLastDistanceUnit("yards")
     setIsRecordingShot(false)
     setShowSplashScreen(false)
     setShowHoleSummary(false)
@@ -615,8 +607,10 @@ export function useShotTracking() {
   }
 
   const getSliderRange = (shotType: string, startDistance?: number) => {
+    // startDistance is in yards
     if (distanceUnit === "feet") {
-      const maxDistance = startDistance || 60
+      const startDistanceFeet = (startDistance || 20) * 3
+      const maxDistance = startDistanceFeet
       const minReasonableMax = 15
       const actualMax = Math.max(maxDistance, minReasonableMax)
       let defaultValue = Math.round(actualMax / 3)
@@ -626,6 +620,7 @@ export function useShotTracking() {
       return { min: 0, max: actualMax, default: defaultValue, step: 1 }
     }
 
+    // distanceUnit is "yards"
     const maxDistance = startDistance || 500
     let typicalShotDistance = 0
     switch (shotType) {
@@ -717,8 +712,8 @@ export function useShotTracking() {
   const handleStartShot = () => {
     const distance = Number.parseInt(currentDistance)
     if (distance && distance > 0 && currentPar) {
+      // The first shot of a hole, distance is from the tee box, assumed yards
       setLastDistance(distance)
-      setLastDistanceUnit(distanceUnit) // Store the unit used for this distance
       setShowSplashScreen(true)
       setCurrentDistance("")
     }
@@ -740,8 +735,17 @@ export function useShotTracking() {
 
   const handleRecordShot = async (isHoleOut = false, isToGimme = false) => {
     if (selectedPlayerName && selectedShotType && lastDistance !== null) {
-      const endDistance = isHoleOut ? 0 : isToGimme ? GIMME_DISTANCE : Number.parseInt(currentDistance) || 0
-      const calculatedDistance = isHoleOut ? lastDistance : lastDistance - endDistance
+      let endDistanceInYards: number
+      if (isHoleOut) {
+        endDistanceInYards = 0
+      } else if (isToGimme) {
+        endDistanceInYards = GIMME_DISTANCE
+      } else {
+        const distValue = Number.parseInt(currentDistance) || 0
+        endDistanceInYards = distanceUnit === "feet" ? distValue / 3 : distValue
+      }
+
+      const calculatedDistanceInYards = lastDistance - endDistanceInYards
 
       // For Team Gimme, use the last player who hit a shot and mark as gimme
       let actualPlayerName = selectedPlayerName
@@ -758,17 +762,16 @@ export function useShotTracking() {
         hole: currentHole,
         par: currentPar,
         shotNumber: currentShotNumber,
-        player: actualPlayerName, // Use actual player name, not "Team Gimme"
+        player: actualPlayerName,
         shotType: selectedShotType,
         startDistance: lastDistance,
-        endDistance: endDistance,
-        calculatedDistance: calculatedDistance,
+        endDistance: endDistanceInYards,
+        calculatedDistance: calculatedDistanceInYards,
         made: isHoleOut,
         isNut: isNut,
         isClutch: isClutch,
-        isGimme: isGimmeShot, // Mark as gimme if it was a team gimme
+        isGimme: isGimmeShot,
         timestamp: new Date(),
-        distanceUnit: distanceUnit, // Store the unit used for this shot
       }
 
       await saveShotToSupabase(newShot)
@@ -777,7 +780,6 @@ export function useShotTracking() {
 
       // Handle hole completion scenarios
       if (isHoleOut) {
-        // Direct hole out - hole is complete with just this shot
         const holeShots = shots.filter((s) => s.hole === currentHole)
         await createHoleCompletion(currentHole, [...holeShots, newShot])
         handleNextHole()
@@ -785,14 +787,12 @@ export function useShotTracking() {
       }
 
       if (isToGimme) {
-        // "To gimme" means this shot + automatic gimme putt = hole complete
-        // Assign the gimme putt to the SAME player who hit the approach shot
         const gimmeShot: LocalShot = {
           id: (Date.now() + 1).toString(),
           hole: currentHole,
           par: currentPar,
           shotNumber: currentShotNumber + 1,
-          player: actualPlayerName, // Use actual player name
+          player: actualPlayerName,
           shotType: "Putt",
           startDistance: GIMME_DISTANCE,
           endDistance: 0,
@@ -800,17 +800,14 @@ export function useShotTracking() {
           made: true,
           isNut: false,
           isClutch: false,
-          isGimme: true, // Mark this as a gimme shot
+          isGimme: true,
           timestamp: new Date(),
-          distanceUnit: "feet", // Gimme putts are always in feet
         }
 
-        // Save the gimme shot to database
         await saveShotToSupabase(gimmeShot)
         updatedShots = [gimmeShot, ...updatedShots]
         setShots(updatedShots)
 
-        // Create hole completion with BOTH shots (the approach + gimme)
         const holeShots = shots.filter((s) => s.hole === currentHole)
         await createHoleCompletion(currentHole, [...holeShots, newShot, gimmeShot])
         handleNextHole()
@@ -823,8 +820,7 @@ export function useShotTracking() {
       setCurrentShotNumber(currentShotNumber + 1)
       setSelectedPlayerName("")
       setShotType("")
-      setLastDistance(endDistance)
-      setLastDistanceUnit(distanceUnit) // Store the unit for the remaining distance
+      setLastDistance(endDistanceInYards)
       setCurrentDistance("")
       setIsRecordingShot(false)
       setShowSplashScreen(true)
@@ -847,7 +843,6 @@ export function useShotTracking() {
     setCurrentPar(nextHolePar)
     setCurrentDistance(nextHoleDistance.toString())
     setDistanceUnit("yards")
-    setLastDistanceUnit("yards")
     setCurrentShotNumber(1)
     setLastDistance(null)
     setIsRecordingShot(false)
@@ -869,7 +864,6 @@ export function useShotTracking() {
     setCurrentPar(prevHolePar)
     setCurrentDistance(prevHoleDistance.toString())
     setDistanceUnit("yards")
-    setLastDistanceUnit("yards")
     setLastDistance(null)
     setIsRecordingShot(false)
     setShowSplashScreen(false)
@@ -908,7 +902,6 @@ export function useShotTracking() {
       made: endDistance === 0,
       isNut: isNut,
       isClutch: isClutch,
-      distanceUnit: endDistance < 50 ? "feet" : "yards", // Update unit based on distance
     }
     const updatedShots = shots.map((shot) => {
       if (shot.id === editingShot.id) return updatedShot
@@ -929,21 +922,14 @@ export function useShotTracking() {
     setEditingShot(null)
   }
 
-  // Updated formatDistance function that respects the unit used
-  const formatDistance = (distance: number, unit?: "yards" | "feet") => {
-    // If unit is explicitly provided, use it
-    if (unit) {
-      return unit === "feet" ? `${distance} ft` : `${distance} yards`
+  const formatDistance = (distanceInYards: number) => {
+    if (distanceInYards === 0) return "0 ft"
+    // Show in feet for distances under 10 yards
+    if (distanceInYards < 10) {
+      const feet = Math.round(distanceInYards * 3)
+      return `${feet} ft`
     }
-
-    // For backwards compatibility, use the old logic if no unit provided
-    if (distance < 50) return `${distance} ft`
-    return `${distance} yards`
-  }
-
-  // New function to format distance with the correct unit from lastDistanceUnit
-  const formatLastDistance = (distance: number) => {
-    return formatDistance(distance, lastDistanceUnit)
+    return `${Math.round(distanceInYards)} yards`
   }
 
   const getDistanceColor = (distance: number) => {
@@ -1018,7 +1004,6 @@ export function useShotTracking() {
     selectedShotType,
     shots,
     lastDistance,
-    lastDistanceUnit,
     isRecordingShot,
     showSplashScreen,
     currentHole,
@@ -1050,7 +1035,6 @@ export function useShotTracking() {
     setShotType,
     setShots,
     setLastDistance,
-    setLastDistanceUnit,
     setIsRecordingShot,
     setShowSplashScreen,
     setCurrentHole,
@@ -1089,7 +1073,6 @@ export function useShotTracking() {
     handleSaveEditedShot,
     handleDeleteShot,
     formatDistance,
-    formatLastDistance,
     getDistanceColor,
     getScoreInfo,
     getTotalScore,
