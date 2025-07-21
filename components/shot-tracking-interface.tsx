@@ -80,6 +80,7 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     getDistanceColor,
     getScoreInfo,
     getTotalScore,
+    lastDistanceUnit,
   } = props
 
   if (currentView === "courses") {
@@ -331,6 +332,7 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
         currentPar={currentPar}
         currentShotNumber={currentShotNumber}
         lastDistance={lastDistance}
+        lastDistanceUnit={lastDistanceUnit}
         selectedRound={selectedRound}
         formatDistance={formatDistance}
         onContinue={handleContinueFromSplash}
@@ -381,7 +383,9 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
               <div className="text-2xl font-bold">Hole {currentHole}</div>
               <div className="text-green-100 text-sm">
                 Par {currentPar} • Shot {isRecordingShot ? currentShotNumber : currentShotNumber}
-                {lastDistance && <span className="ml-2">• {formatDistance(lastDistance)} remaining</span>}
+                {lastDistance && (
+                  <span className="ml-2">• {formatDistance(lastDistance, lastDistanceUnit)} remaining</span>
+                )}
               </div>
               {selectedRound?.course && <div className="text-green-100 text-xs mt-1">{selectedRound.course.name}</div>}
             </div>
@@ -444,6 +448,7 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
             getIntelligentUnit={getIntelligentUnit}
             getSliderRange={getSliderRange}
             getEmojiState={getEmojiState}
+            lastDistanceUnit={lastDistanceUnit}
           />
         )}
 

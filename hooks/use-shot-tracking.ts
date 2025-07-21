@@ -89,6 +89,7 @@ export function useShotTracking() {
   const [selectedShotType, setShotType] = useState<string>("")
   const [shots, setShots] = useState<LocalShot[]>([])
   const [lastDistance, setLastDistance] = useState<number | null>(null)
+  const [lastDistanceUnit, setLastDistanceUnit] = useState<"yards" | "feet">("yards")
   const [isRecordingShot, setIsRecordingShot] = useState(false)
   const [showSplashScreen, setShowSplashScreen] = useState(false)
   const [currentHole, setCurrentHole] = useState<number>(1)
@@ -422,6 +423,7 @@ export function useShotTracking() {
           setCurrentShotNumber(lastShot.shotNumber + 1)
           setCurrentPar(getParForHole(lastCompletedHole))
           setLastDistance(lastShot.endDistance)
+          setLastDistanceUnit(lastShot.endDistance < 50 ? "feet" : "yards")
           setCurrentDistance("")
           setIsRecordingShot(false)
           setShowSplashScreen(true) // Show splash to continue from last shot
@@ -589,6 +591,7 @@ export function useShotTracking() {
     setCurrentPar(4)
     setCurrentDistance("")
     setLastDistance(null)
+    setLastDistanceUnit("yards")
     setIsRecordingShot(false)
     setShowSplashScreen(false)
     setShowHoleSummary(false)
@@ -710,6 +713,7 @@ export function useShotTracking() {
     const distance = Number.parseInt(currentDistance)
     if (distance && distance > 0 && currentPar) {
       setLastDistance(distance)
+      setLastDistanceUnit(distanceUnit)
       setShowSplashScreen(true)
       setCurrentDistance("")
     }
@@ -813,6 +817,11 @@ export function useShotTracking() {
       setSelectedPlayerName("")
       setShotType("")
       setLastDistance(endDistance)
+      if (isToGimme) {
+        setLastDistanceUnit("feet")
+      } else {
+        setLastDistanceUnit(distanceUnit)
+      }
       setCurrentDistance("")
       setIsRecordingShot(false)
       setShowSplashScreen(true)
@@ -837,6 +846,7 @@ export function useShotTracking() {
     setDistanceUnit("yards")
     setCurrentShotNumber(1)
     setLastDistance(null)
+    setLastDistanceUnit("yards")
     setIsRecordingShot(false)
     setShowSplashScreen(false)
     setSelectedPlayerName("")
@@ -857,6 +867,7 @@ export function useShotTracking() {
     setCurrentDistance(prevHoleDistance.toString())
     setDistanceUnit("yards")
     setLastDistance(null)
+    setLastDistanceUnit("yards")
     setIsRecordingShot(false)
     setShowSplashScreen(false)
     setSelectedPlayerName("")
@@ -914,9 +925,13 @@ export function useShotTracking() {
     setEditingShot(null)
   }
 
-  const formatDistance = (distance: number, unit: "yards" | "feet" = "yards") => {
-    if (unit === "feet" || distance < 50) return `${distance} ft`
-    return `${distance} yards`
+  const formatDistance = (distance: number, unit?: "yards" | "feet") => {
+    // If unit is provided, use it.
+    if (unit) {
+      return `${distance} ${unit === "feet" ? "ft" : "yards"}`
+    }
+    // If no unit, use heuristic for backwards compatibility (shot history).
+    return `${distance} ${distance < 50 ? "ft" : "yards"}`
   }
 
   const getDistanceColor = (distance: number) => {
@@ -991,6 +1006,7 @@ export function useShotTracking() {
     selectedShotType,
     shots,
     lastDistance,
+    lastDistanceUnit,
     isRecordingShot,
     showSplashScreen,
     currentHole,

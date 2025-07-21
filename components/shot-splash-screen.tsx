@@ -9,13 +9,14 @@ interface ShotSplashScreenProps {
   currentPar: number
   currentShotNumber: number
   lastDistance: number | null
+  lastDistanceUnit: "yards" | "feet"
   selectedRound?: {
     name: string
     course?: {
       name: string
     }
   } | null
-  formatDistance: (distance: number) => string
+  formatDistance: (distance: number, unit?: "yards" | "feet") => string
   onContinue: () => void
 }
 
@@ -24,6 +25,7 @@ export default function ShotSplashScreen({
   currentPar,
   currentShotNumber,
   lastDistance,
+  lastDistanceUnit,
   selectedRound,
   formatDistance,
   onContinue,
@@ -37,7 +39,9 @@ export default function ShotSplashScreen({
               <div className="text-2xl font-bold">Hole {currentHole}</div>
               <div className="text-green-100 text-sm">
                 Par {currentPar} • Shot {currentShotNumber}
-                {lastDistance && <span className="ml-2">• {formatDistance(lastDistance)} remaining</span>}
+                {lastDistance && (
+                  <span className="ml-2">• {formatDistance(lastDistance, lastDistanceUnit)} remaining</span>
+                )}
               </div>
               {selectedRound?.course && <div className="text-green-100 text-xs mt-1">{selectedRound.course.name}</div>}
             </div>
@@ -54,11 +58,11 @@ export default function ShotSplashScreen({
               <p className="text-green-600">
                 {currentShotNumber === 1 ? (
                   <>
-                    Starting from <strong>{formatDistance(lastDistance!)}</strong>
+                    Starting from <strong>{formatDistance(lastDistance!, lastDistanceUnit)}</strong>
                   </>
                 ) : (
                   <>
-                    <strong>{formatDistance(lastDistance!)} out</strong>
+                    <strong>{formatDistance(lastDistance!, lastDistanceUnit)} out</strong>
                   </>
                 )}
               </p>
