@@ -1,8 +1,10 @@
 "use client"
+import { useState } from "react"
 import StartupScreen from "@/components/startup-screen"
 import ShotTrackingInterface from "@/components/shot-tracking-interface"
 import DataConflictDialog from "@/components/data-conflict-dialog"
 import RefreshRecoveryScreen from "@/components/refresh-recovery-screen"
+import SettingsPage from "@/components/settings-page"
 import { useShotTracking } from "@/hooks/use-shot-tracking"
 
 interface Shot {
@@ -237,6 +239,7 @@ const LOMIRA_COURSE: Course = {
 }
 
 export default function Home() {
+  const [showSettings, setShowSettings] = useState(false)
   const shotTrackingProps = useShotTracking()
 
   const {
@@ -260,6 +263,11 @@ export default function Home() {
     handleRefreshRecoveryContinue,
     handleRefreshRecoveryStartOver,
   } = shotTrackingProps
+
+  // Show settings page if requested
+  if (showSettings) {
+    return <SettingsPage onBack={() => setShowSettings(false)} />
+  }
 
   // Show refresh recovery screen first if detected
   if (showRefreshRecovery && refreshRecoveryData) {
@@ -301,6 +309,7 @@ export default function Home() {
         onTeamSelect={handleTeamSelect}
         onPlayerSelect={setSelectedPlayer}
         onStartTracking={handleStartTracking}
+        onShowSettings={() => setShowSettings(true)}
       />
     )
   }
