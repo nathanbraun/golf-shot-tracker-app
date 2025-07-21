@@ -149,6 +149,7 @@ The Golf Shot Tracker App is a comprehensive tool for tracking and analyzing gol
 │   ├── hole-summary.tsx
 │   ├── live-feed.tsx
 │   ├── refresh-recovery-screen.tsx
+│   ├── settings-page.tsx
 │   ├── shot-recording-input.tsx
 │   ├── shot-splash-screen.tsx
 │   ├── shot-tracker-footer.tsx
@@ -185,8 +186,6 @@ The Golf Shot Tracker App is a comprehensive tool for tracking and analyzing gol
 ├── SUMMARY.md
 ├── tailwind.config.ts
 └── tsconfig.json
-
-9 directories, 90 files
 
 ## Recent Changes
 
@@ -238,7 +237,7 @@ Standardized the app's distance handling to store all measurements in feet inter
 - `hooks/use-shot-tracking.ts`
 
 **Purpose:**
-- Improved the user experience when selecting "feet" as the distance unit by capping the maximum range of the distance slider to 50 feet instead of the previous calculation that used yards*3.
+- Improved the user experience when selecting "feet" as the distance unit by capping the maximum range of the distance slider to 50 feet instead of the previous calculation that used `yards*3`.
 
 **Implementation Details:**
 - Modified the `getSliderRange` function in the `use-shot-tracking.ts` hook to use a fixed maximum value of 50 when the distance unit is set to "feet".
@@ -273,3 +272,46 @@ if (distanceUnit === "feet") {
 **Follow-up Work:**
 - Consider adding user settings to allow customization of maximum ranges for different units.
 - Monitor user feedback to ensure the 50 feet cap is appropriate for all use cases.
+
+### Added PWA Installation Support and Settings Access (2025-07-21)
+
+#### Files Modified/Created
+- **Created**: `/hooks/use-pwa-install.ts` - New custom hook to handle PWA installation logic
+- **Modified**: `/components/settings-page.tsx` - Implemented PWA installation functionality
+- **Modified**: `/components/shot-tracking-interface.tsx` - Added settings page access and navigation
+- **Modified**: `/components/shot-tracker-footer.tsx` - Added settings gear icon in footer
+
+#### Purpose of Changes
+- Enable users to install the Golf Shot Tracker as a Progressive Web App (PWA)
+- Provide easy access to the settings page from the main tracking interface
+- Improve the user experience by allowing app installation for offline access
+
+#### Key Implementation Details
+1. **PWA Installation Hook**:
+   - Created a reusable hook that detects if PWA installation is available
+   - Handles different behaviors for iOS vs Android/desktop browsers
+   - Manages the installation prompt and tracks installation state
+
+2. **Settings Page Integration**:
+   - Connected the "Install as App" button to the PWA installation prompt
+   - Added iOS-specific guidance for installation
+   - Implemented state management for installation process
+
+3. **Main App Navigation**:
+   - Added a settings button to the app footer
+   - Implemented navigation between tracking interface and settings
+   - Ensured consistent UI across different app views
+
+#### Design Decisions & Tradeoffs
+- **Platform-specific UX**: Different approaches for iOS vs Android to account for different installation methods
+- **Button state management**: Disabling the install button when installation is not available rather than hiding it
+- **Minimal feedback**: Used simple alerts for installation feedback instead of more complex toast notifications to minimize dependencies
+
+#### New Dependencies
+- No new external dependencies were added; leveraged existing browser APIs
+
+#### TODO Items
+- Consider adding more sophisticated feedback mechanisms (toasts, banners)
+- Add analytics to track installation attempts and success rates
+- Test installation behavior across a wider range of devices and browsers
+- Consider adding offline mode indicators to show when app is running as installed PWA

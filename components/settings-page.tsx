@@ -1,17 +1,45 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Download, Smartphone } from "lucide-react"
+import { ArrowLeft, Download, Smartphone, InfoIcon } from "lucide-react"
+import { usePWAInstall } from "@/hooks/use-pwa-install"
+import { toast } from "@/components/ui/use-toast" // assuming you have a toast component
 
 interface SettingsPageProps {
   onBack: () => void
 }
 
 export default function SettingsPage({ onBack }: SettingsPageProps) {
-  const handleInstallPWA = () => {
-    // TODO: Wire up PWA installation logic
-    console.log("Install PWA clicked - PWA installation will be implemented here")
+  const { isInstallable, isIOS, promptInstall } = usePWAInstall();
+  const [installing, setInstalling] = useState(false);
+
+  const handleInstallPWA = async () => {
+    setInstalling(true);
+    
+    if (isIOS) {
+      // For iOS, we just show instructions
+      alert("To install this app on iOS: tap the Share button, then 'Add to Home Screen'");
+      setInstalling(false);
+      return;
+    }
+    
+    try {
+      const outcome = await promptInstall();
+      
+      if (outcome === 'accepted') {
+        // Optional: show success message
+        alert("Installation started! Check your home screen after it completes.");
+      } else if (outcome === 'not_available') {
+        alert("Installation is not available on this device or browser.");
+      }
+    } catch (error) {
+      console.error("Installation error:", error);
+      alert("There was a problem installing the app. Please try again.");
+    } finally {
+      setInstalling(false);
+    }
   }
 
   return (
@@ -41,12 +69,23 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
               <p className="text-muted-foreground text-sm">
                 Install this app on your device for a better experience and offline access.
               </p>
+              
+              {isIOS && (
+                <div className="bg-blue-50 p-3 rounded-md flex items-start gap-2 text-sm">
+                  <InfoIcon className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-blue-700">
+                    On iOS, tap the share button and select "Add to Home Screen" to install.
+                  </p>
+                </div>
+              )}
+              
               <Button
                 onClick={handleInstallPWA}
                 className="w-full bg-green-600 hover:bg-green-700 flex items-center gap-2"
+                disabled={!isInstallable && !isIOS || installing}
               >
                 <Download className="w-4 h-4" />
-                Install as App
+                {installing ? 'Installing...' : isIOS ? 'Add to Home Screen' : 'Install as App'}
               </Button>
             </div>
 

@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, MapPin, Users, Calendar } from "lucide-react"
+import { ArrowLeft, MapPin, Users, Calendar, Settings } from "lucide-react"
 
 interface ShotTrackerFooterProps {
   selectedRound?: {
@@ -19,6 +19,7 @@ interface ShotTrackerFooterProps {
     name: string
   } | null
   onBackToSetup: () => void
+  onShowSettings?: () => void  // Add this new prop
 }
 
 export default function ShotTrackerFooter({
@@ -26,6 +27,7 @@ export default function ShotTrackerFooter({
   selectedTeam,
   selectedPlayer,
   onBackToSetup,
+  onShowSettings,  // Add this new prop
 }: ShotTrackerFooterProps) {
   return (
     <Card className="bg-gray-50 border-gray-200">
@@ -36,15 +38,28 @@ export default function ShotTrackerFooter({
               <Calendar className="w-3 h-3" />
               <span>{selectedRound?.name || "No Round Selected"}</span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBackToSetup}
-              className="flex items-center gap-1 text-xs h-6 px-2"
-            >
-              <ArrowLeft className="w-3 h-3" />
-              Setup
-            </Button>
+            <div className="flex items-center gap-2">
+              {onShowSettings && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onShowSettings}
+                  className="flex items-center gap-1 text-xs h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+                >
+                  <Settings className="w-3 h-3" />
+                  Settings
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBackToSetup}
+                className="flex items-center gap-1 text-xs h-6 px-2"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Setup
+              </Button>
+            </div>
           </div>
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-3">

@@ -18,6 +18,7 @@ import ShotTrackerFooter from "@/components/shot-tracker-footer"
 import TeeShotInput from "@/components/tee-shot-input"
 import ShotRecordingInput from "@/components/shot-recording-input"
 import HoleSummary from "@/components/hole-summary"
+import SettingsPage from "@/components/settings-page" 
 
 // Declare SHOT_TYPES and EMOJI_TAGS variables
 const SHOT_TYPES = ["Drive", "Approach", "Chip", "Putt", "Sand", "Recovery"]
@@ -324,6 +325,12 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     )
   }
 
+  if (currentView === "settings") {
+    return (
+      <SettingsPage onBack={() => setCurrentView("tracking")} />
+    )
+  }
+
   if (showSplashScreen) {
     return (
       <ShotSplashScreen
@@ -523,6 +530,7 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
           selectedTeam={selectedTeam}
           selectedPlayer={selectedPlayer}
           onBackToSetup={handleBackToSetup}
+          onShowSettings={() => setCurrentView("settings")}  // Add this line
         />
       </div>
     </div>
