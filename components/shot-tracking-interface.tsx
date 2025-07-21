@@ -11,6 +11,9 @@ import LiveFeed from "@/components/live-feed"
 import ShotSplashScreen from "@/components/shot-splash-screen"
 import type { useShotTracking } from "@/hooks/use-shot-tracking"
 import ShotTrackerHeader from "@/components/shot-tracker-header"
+import ShotTrackerFooter from "@/components/shot-tracker-footer"
+import TeeShotInput from "@/components/tee-shot-input"
+import ShotRecordingInput from "@/components/shot-recording-input"
 import HoleSummary from "@/components/hole-summary"
 
 // Declare SHOT_TYPES and EMOJI_TAGS variables
@@ -76,6 +79,8 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     getScoreInfo,
     getTotalScore,
   } = props
+
+  const totalScore = getTotalScore() // Declare totalScore variable
 
   if (currentView === "courses") {
     return (
@@ -351,7 +356,6 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     )
   }
 
-  const totalScore = getTotalScore()
   const PLAYERS = selectedTeam?.players?.map((p) => p.name) || ["Brusda", "Nate", "Mikey", "Strauss"]
 
   return (
@@ -362,4 +366,69 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
           currentPar={currentPar}
           currentShotNumber={currentShotNumber}
           isRecordingShot={isRecordingShot}
-          totalScore={total
+          totalScore={totalScore} // Corrected totalScore variable usage
+          selectedRound={selectedRound}
+          selectedTeam={selectedTeam}
+          selectedPlayer={selectedPlayer}
+          isSyncing={isSyncing}
+          onBackToSetup={handleBackToSetup}
+          onViewSummary={() => setCurrentView("summary")}
+          onViewFeed={() => setCurrentView("feed")}
+        />
+
+        {!isRecordingShot ? (
+          <TeeShotInput
+            currentDistance={currentDistance}
+            distanceUnit={distanceUnit}
+            useSlider={useSlider}
+            currentPar={currentPar}
+            currentShotNumber={currentShotNumber}
+            lastDistance={lastDistance}
+            formatLastDistance={formatLastDistance}
+            onDistanceChange={setCurrentDistance}
+            onDistanceUnitChange={setDistanceUnit}
+            onUseSliderChange={setUseSlider}
+            onStartShot={handleStartShot}
+            getIntelligentUnit={getIntelligentUnit}
+          />
+        ) : (
+          <ShotRecordingInput
+            selectedPlayerName={selectedPlayerName}
+            selectedShotType={selectedShotType}
+            currentDistance={currentDistance}
+            distanceUnit={distanceUnit}
+            useSlider={useSlider}
+            lastDistance={lastDistance}
+            isNut={isNut}
+            isClutch={isClutch}
+            showMoreOptions={showMoreOptions}
+            players={PLAYERS}
+            shotTypes={SHOT_TYPES}
+            emojiTags={EMOJI_TAGS}
+            onPlayerSelect={setSelectedPlayerName}
+            onShotTypeChange={handleShotTypeChange}
+            onDistanceChange={setCurrentDistance}
+            onDistanceUnitChange={setDistanceUnit}
+            onUseSliderChange={setUseSlider}
+            onToggleEmojiTag={toggleEmojiTag}
+            onToggleMoreOptions={() => setShowMoreOptions(!showMoreOptions)}
+            onRecordShot={handleRecordShot}
+            getSliderRange={getSliderRange}
+            getEmojiState={getEmojiState}
+          />
+        )}
+
+        <ShotTrackerFooter
+          shots={shots}
+          currentHole={currentHole}
+          courseHoles={courseHoles}
+          onEditShot={handleEditShot}
+          onPreviousHole={handlePreviousHole}
+          formatDistance={formatDistance}
+          getDistanceColor={getDistanceColor}
+          getScoreInfo={getScoreInfo}
+        />
+      </div>
+    </div>
+  )
+}
