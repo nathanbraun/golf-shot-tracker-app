@@ -246,7 +246,7 @@ Standardized the app's distance handling to store all measurements in feet inter
 - This change ensures a more appropriate and consistent range for short-distance measurements.
 
 **Code Change:**
-```typescript
+\`\`\`typescript
 // Before:
 if (distanceUnit === "feet") {
   const maxDistance = startDistance || 60
@@ -260,7 +260,7 @@ if (distanceUnit === "feet") {
   const maxDistance = 50; // Changed from using startDistance to a fixed 50
   // ...
 }
-```
+\`\`\`
 
 **Design Decisions:**
 - Fixed value of 50 feet was chosen as an appropriate maximum for measurements in feet, as longer distances are better represented in yards.

@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Loader2, Flag, Users, User, Calendar } from "lucide-react"
+import { Loader2, Flag, Users, User, Calendar, Settings } from "lucide-react"
 import type { Player, Round, Team } from "@/lib/supabase"
 
 interface StartupScreenProps {
@@ -62,12 +62,25 @@ export default function StartupScreen({
     <div className="min-h-screen bg-green-50 p-4 flex items-center justify-center">
       <div className="w-full max-w-md mx-auto">
         <Card>
-          <CardHeader className="text-center">
+          <CardHeader className="text-center relative">
             <div className="flex items-center justify-center gap-2 text-green-700">
               <Flag className="w-8 h-8" />
               <CardTitle className="text-2xl">Golf Scramble Tracker</CardTitle>
             </div>
             <p className="text-muted-foreground">Select your round to begin</p>
+
+            {/* Settings Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 text-green-600 hover:text-green-700 hover:bg-green-100"
+              onClick={() => {
+                // TODO: Wire up PWA installation logic
+                console.log("Settings clicked - PWA installation will be implemented here")
+              }}
+            >
+              <Settings className="w-5 h-5" />
+            </Button>
           </CardHeader>
           <CardContent className="space-y-8">
             {loading ? (
