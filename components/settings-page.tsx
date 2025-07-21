@@ -5,14 +5,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Download, Smartphone, InfoIcon } from "lucide-react"
 import { usePWAInstall } from "@/hooks/use-pwa-install"
-import { toast } from "@/components/ui/use-toast" // assuming you have a toast component
 
 interface SettingsPageProps {
   onBack: () => void
 }
 
 export default function SettingsPage({ onBack }: SettingsPageProps) {
-  const { isInstallable, isIOS, promptInstall } = usePWAInstall();
+  const { isInstallable, isIOS, promptInstall, debugInfo } = usePWAInstall();
   const [installing, setInstalling] = useState(false);
 
   const handleInstallPWA = async () => {
@@ -82,11 +81,17 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
               <Button
                 onClick={handleInstallPWA}
                 className="w-full bg-green-600 hover:bg-green-700 flex items-center gap-2"
-                disabled={!isInstallable && !isIOS || installing}
+                disabled={!isInstallable || installing}
               >
                 <Download className="w-4 h-4" />
                 {installing ? 'Installing...' : isIOS ? 'Add to Home Screen' : 'Install as App'}
               </Button>
+
+              {/* Debug info - you can remove this in production */}
+              <div className="text-xs text-gray-500 mt-2">
+                Status: {isInstallable ? 'Installable' : 'Not installable'} 
+                {debugInfo ? ` (${debugInfo})` : ''}
+              </div>
             </div>
 
             {/* Future settings sections can go here */}
