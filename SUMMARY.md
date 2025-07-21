@@ -132,3 +132,102 @@ The app uses Supabase as its backend with the following tables:
 ## Conclusion
 
 The Golf Shot Tracker App is a comprehensive tool for tracking and analyzing golf scramble tournaments. It provides detailed shot tracking, team management, and statistical analysis features with both online and offline capabilities. The codebase is organized around React components and hooks, with Supabase providing the backend data storage and API.
+
+## Directory Structure
+❯ tree -I 'node_modules|target|public|scripts'
+.
+├── app
+│   ├── admin
+│   │   └── page.tsx
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components
+│   ├── admin-dashboard.tsx
+│   ├── course-manager.tsx
+│   ├── data-conflict-dialog.tsx
+│   ├── hole-summary.tsx
+│   ├── live-feed.tsx
+│   ├── refresh-recovery-screen.tsx
+│   ├── shot-recording-input.tsx
+│   ├── shot-splash-screen.tsx
+│   ├── shot-tracker-footer.tsx
+│   ├── shot-tracker-header.tsx
+│   ├── shot-tracking-interface.tsx
+│   ├── startup-screen.tsx
+│   ├── summary-page.tsx
+│   ├── supabase-connection-test.tsx
+│   ├── supabase-test.tsx
+│   ├── tee-shot-input.tsx
+│   ├── theme-provider.tsx
+│   └── ui
+│       ├── ...
+├── components.json
+├── generate-splash-screens.html
+├── hooks
+│   ├── use-mobile.tsx
+│   ├── use-shot-tracking.ts
+│   └── use-toast.ts
+├── lib
+│   ├── supabase.ts
+│   └── utils.ts
+├── netlify
+├── netlify.toml
+├── next-env.d.ts
+├── next.config.mjs
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── postcss.config.mjs
+├── README.md
+├── styles
+│   └── globals.css
+├── SUMMARY.md
+├── tailwind.config.ts
+└── tsconfig.json
+
+9 directories, 90 files
+
+## Recent Changes
+
+### Standardized Distance Handling to Use Feet Internally (2025-07-21)
+
+#### Files Modified
+- `/lib/utils.ts`
+- `/hooks/use-shot-tracking.ts`
+- `/components/shot-recording-input.tsx`
+- `/components/tee-shot-input.tsx`
+- `/components/shot-splash-screen.tsx`
+- `/components/hole-summary.tsx`
+- `/components/summary-page.tsx`
+
+#### Purpose
+Standardized the app's distance handling to store all measurements in feet internally, while displaying distances in appropriate units (yards for longer shots, feet for shorter shots like putts) in the UI. This resolves the ambiguity where the database didn't distinguish between yards and feet.
+
+#### Key Implementation Details
+- Added utility functions in `lib/utils.ts` for unit conversion:
+  - `feetToYards(feet: number)`: Converts feet to yards (dividing by 3)
+  - `yardsToFeet(yards: number)`: Converts yards to feet (multiplying by 3)
+  - `shouldDisplayInFeet(distance: number, shotType?: string)`: Determines if a distance should be displayed in feet
+  - `formatDistance(distance: number, shotType?: string)`: Formats a distance with appropriate units
+
+- Modified core shot tracking logic to:
+  - Convert input distances to feet before storing in the database
+  - Convert from feet to appropriate display units when showing distances
+  - Update slider ranges and default values to handle the unit conversions
+
+- Updated display components to use the new utility functions for consistent formatting
+
+#### Design Decisions & Tradeoffs
+- **DRY Approach**: Centralized unit conversion in `utils.ts` to avoid duplication
+- **Backward Compatibility**: No database schema changes required; existing records are interpreted as being in feet
+- **Smart Display Logic**: Uses shot type and distance magnitude to determine appropriate display units
+- **User Experience**: Users still input distances in familiar units (yards for long shots, feet for putts)
+
+#### New Dependencies
+- No new external dependencies were introduced
+
+#### TODO Items
+- Consider adding a database migration to convert existing data if any was recorded in yards
+- Add unit tests for the conversion utilities
+- Consider adding explicit unit metadata to the database schema for future flexibility

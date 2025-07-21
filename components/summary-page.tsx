@@ -1,5 +1,6 @@
 "use client"
 
+import { feetToYards, shouldDisplayInFeet, formatDistance as formatDistanceUtil } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -91,18 +92,24 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
   const longestShot = Math.max(...nonGimmeShots.map((shot) => shot.calculatedDistance), 0)
   const holesPlayed = new Set(nonGimmeShots.map((shot) => shot.hole)).size
 
-  const formatDistance = (distance: number) => {
-    if (distance >= 100) {
-      return `${distance} yards`
-    } else {
-      return `${distance} ft`
-    }
+  const formatDistance = (distance: number, shotType?: string) => {
+    return formatDistanceUtil(distance, shotType || "")
   }
 
   const getDistanceColor = (distance: number) => {
-    if (distance >= 250) return "text-green-600"
-    if (distance >= 150) return "text-blue-600"
-    if (distance >= 50) return "text-yellow-600"
+    // For shot types typically measured in feet (like putts)
+    if (shouldDisplayInFeet(distance)) {
+      if (distance >= 30) return "text-purple-600"
+      if (distance >= 15) return "text-blue-600" 
+      if (distance >= 5) return "text-yellow-600"
+      return "text-green-600"
+    }
+    
+    // For shots typically measured in yards
+    const yards = feetToYards(distance)
+    if (yards >= 250) return "text-green-600"
+    if (yards >= 150) return "text-blue-600"
+    if (yards >= 50) return "text-yellow-600"
     return "text-purple-600"
   }
 

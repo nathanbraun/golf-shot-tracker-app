@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Target, ToggleLeft, ToggleRight, Settings, ArrowDown } from "lucide-react"
+import { feetToYards, yardsToFeet, shouldDisplayInFeet } from "@/lib/utils"
 
 const SHOT_TYPES = ["Drive", "Approach", "Chip", "Putt", "Sand", "Recovery"]
 const EMOJI_TAGS = ["💦", "🛟"]
@@ -92,7 +93,7 @@ export default function ShotRecordingInput({
             Record Shot {currentShotNumber}
           </CardTitle>
           <div className="text-sm text-blue-600">
-            From {formatDistance(lastDistance)} • Par {currentPar}
+            From {formatDistance(lastDistance, selectedShotType)} • Par {currentPar}
           </div>
         </CardHeader>
         <CardContent className="space-y-6 bg-white rounded-lg p-4 mx-2 mb-2">
@@ -264,7 +265,7 @@ export default function ShotRecordingInput({
                 <div className="space-y-4 py-2">
                   <div className="flex justify-center mb-4">
                     <Badge variant="secondary" className="text-lg px-4 py-2">
-                      {currentDistanceNum} {distanceUnit}
+                      {distanceUnit === "yards" ? currentDistanceNum : currentDistanceNum} {distanceUnit}
                     </Badge>
                   </div>
                   <div className="px-2">

@@ -13,6 +13,7 @@ import {
   type Team,
   type CourseHole,
 } from "@/lib/supabase"
+import { feetToYards, yardsToFeet, shouldDisplayInFeet, formatDistance as formatDistanceUtil } from "@/lib/utils"
 
 const GIMME_DISTANCE = 3 // feet
 
@@ -299,6 +300,7 @@ export function useShotTracking() {
     }
   }
 
+  // Update the loadCourseData function to ensure distances are stored in feet
   const loadCourseData = async (roundId: string) => {
     setLoadingCourseData(true)
     try {
@@ -314,8 +316,9 @@ export function useShotTracking() {
           console.log("DEBUG: Setting up hole 1:", hole1)
           setCurrentHole(1)
           setCurrentPar(hole1.par)
+          // Course distances are stored in yards, convert to feet for internal use
           setCurrentDistance(hole1.distance.toString())
-          setDistanceUnit("yards")
+          setDistanceUnit("yards") // Start in yards for display
           setCurrentShotNumber(1)
           setLastDistance(null)
           setIsRecordingShot(false)
@@ -443,7 +446,8 @@ export function useShotTracking() {
 
   const getDistanceForHole = (holeNumber: number): number => {
     const hole = courseHoles.find((h) => h.hole_number === holeNumber)
-    return hole ? hole.distance : 400
+    // Course distances are stored in yards, so convert to feet
+    return hole ? yardsToFeet(hole.distance) : yardsToFeet(400)
   }
 
   // Get the last player who hit a shot on this hole
@@ -618,7 +622,9 @@ export function useShotTracking() {
       return { min: 0, max: actualMax, default: defaultValue, step: 1 }
     }
 
-    const maxDistance = startDistance || 500
+    // If displaying in yards, convert the internal feet value to yards for the slider
+    const startDistanceInYards = startDistance ? feetToYards(startDistance) : undefined
+    const maxDistance = startDistanceInYards || 500
     let typicalShotDistance = 0
     switch (shotType) {
       case "Drive":
@@ -709,7 +715,9 @@ export function useShotTracking() {
   const handleStartShot = () => {
     const distance = Number.parseInt(currentDistance)
     if (distance && distance > 0 && currentPar) {
-      setLastDistance(distance)
+      // Convert to feet if currently in yards
+      const distanceInFeet = distanceUnit === "yards" ? yardsToFeet(distance) : distance
+      setLastDistance(distanceInFeet)
       setShowSplashScreen(true)
       setCurrentDistance("")
     }
@@ -723,7 +731,11 @@ export function useShotTracking() {
     setDistanceUnit(defaultUnit)
     if (useSlider) {
       const range = getSliderRange(defaultShotType, lastDistance!)
-      setCurrentDistance(range.default.toString())
+      // If we're displaying in yards but storing in feet, we need to convert the default value
+      const defaultValueToDisplay = defaultUnit === "yards" 
+        ? range.default  // Already in yards from getSliderRange
+        : range.default  // Already in feet from getSliderRange
+      setCurrentDistance(defaultValueToDisplay.toString())
     } else {
       setCurrentDistance("")
     }
@@ -731,7 +743,10 @@ export function useShotTracking() {
 
   const handleRecordShot = async (isHoleOut = false, isToGimme = false) => {
     if (selectedPlayerName && selectedShotType && lastDistance !== null) {
-      const endDistance = isHoleOut ? 0 : isToGimme ? GIMME_DISTANCE : Number.parseInt(currentDistance) || 0
+      const endDistanceInput = Number.parseInt(currentDistance) || 0
+      // Convert end distance to feet if currently in yards
+      const endDistance = isHoleOut ? 0 : isToGimme ? GIMME_DISTANCE : 
+        (distanceUnit === "yards" ? yardsToFeet(endDistanceInput) : endDistanceInput)
       const calculatedDistance = isHoleOut ? lastDistance : lastDistance - endDistance
 
       // For Team Gimme, use the last player who hit a shot and mark as gimme
@@ -831,9 +846,10 @@ export function useShotTracking() {
     setIsClutch(false)
     const nextHolePar = getParForHole(nextHole)
     const nextHoleDistance = getDistanceForHole(nextHole)
-    console.log(`DEBUG: Setting up hole ${nextHole}: par ${nextHolePar}, distance ${nextHoleDistance}`)
+    console.log(`DEBUG: Setting up hole ${nextHole}: par ${nextHolePar}, distance ${feetToYards(nextHoleDistance)} yards`)
     setCurrentPar(nextHolePar)
-    setCurrentDistance(nextHoleDistance.toString())
+    // For display, show in yards but store as feet internally
+    setCurrentDistance(feetToYards(nextHoleDistance).toString())
     setDistanceUnit("yards")
     setCurrentShotNumber(1)
     setLastDistance(null)
@@ -852,9 +868,10 @@ export function useShotTracking() {
     setIsClutch(false)
     const prevHolePar = getParForHole(prevHole)
     const prevHoleDistance = getDistanceForHole(prevHole)
-    console.log(`DEBUG: Setting up hole ${prevHole}: par ${prevHolePar}, distance ${prevHoleDistance}`)
+    console.log(`DEBUG: Setting up hole ${prevHole}: par ${prevHolePar}, distance ${feetToYards(prevHoleDistance)} yards`)
     setCurrentPar(prevHolePar)
-    setCurrentDistance(prevHoleDistance.toString())
+    // For display, show in yards but store as feet internally
+    setCurrentDistance(feetToYards(prevHoleDistance).toString())
     setDistanceUnit("yards")
     setLastDistance(null)
     setIsRecordingShot(false)
@@ -914,9 +931,8 @@ export function useShotTracking() {
     setEditingShot(null)
   }
 
-  const formatDistance = (distance: number, unit: "yards" | "feet" = "yards") => {
-    if (unit === "feet" || distance < 50) return `${distance} ft`
-    return `${distance} yards`
+  const formatDistance = (distance: number, shotType?: string) => {
+    return formatDistanceUtil(distance, shotType)
   }
 
   const getDistanceColor = (distance: number) => {
