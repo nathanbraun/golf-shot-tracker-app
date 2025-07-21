@@ -1,6 +1,6 @@
 {
-  "name": "Golf Shot Tracker",
-  "short_name": "Shot Tracker",
+  "name": "BB Bowl Golf",
+  "short_name": "BB Golf",
   "description": "Track golf shots during scramble tournaments",
   "start_url": "/",
   "display": "standalone",
