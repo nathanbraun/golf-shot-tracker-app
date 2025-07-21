@@ -231,3 +231,45 @@ Standardized the app's distance handling to store all measurements in feet inter
 - Consider adding a database migration to convert existing data if any was recorded in yards
 - Add unit tests for the conversion utilities
 - Consider adding explicit unit metadata to the database schema for future flexibility
+
+### Updated Distance Slider Range for Feet Units (2025-07-21)
+
+**Files Modified:**
+- `hooks/use-shot-tracking.ts`
+
+**Purpose:**
+- Improved the user experience when selecting "feet" as the distance unit by capping the maximum range of the distance slider to 50 feet instead of the previous calculation that used yards*3.
+
+**Implementation Details:**
+- Modified the `getSliderRange` function in the `use-shot-tracking.ts` hook to use a fixed maximum value of 50 when the distance unit is set to "feet".
+- Previously, the maximum range was calculated based on the start distance (or 60 feet if none provided) or a minimum reasonable maximum of 15 feet, whichever was larger.
+- This change ensures a more appropriate and consistent range for short-distance measurements.
+
+**Code Change:**
+```typescript
+// Before:
+if (distanceUnit === "feet") {
+  const maxDistance = startDistance || 60
+  const minReasonableMax = 15
+  const actualMax = Math.max(maxDistance, minReasonableMax)
+  // ...
+}
+
+// After:
+if (distanceUnit === "feet") {
+  const maxDistance = 50; // Changed from using startDistance to a fixed 50
+  // ...
+}
+```
+
+**Design Decisions:**
+- Fixed value of 50 feet was chosen as an appropriate maximum for measurements in feet, as longer distances are better represented in yards.
+- Kept the existing default value calculation logic (maxDistance / 3 or maxDistance / 2 for putts) to maintain consistent user experience.
+- The rest of the function remains unchanged to preserve behavior for yards and other special cases.
+
+**Dependencies:**
+- No new dependencies were introduced.
+
+**Follow-up Work:**
+- Consider adding user settings to allow customization of maximum ranges for different units.
+- Monitor user feedback to ensure the 50 feet cap is appropriate for all use cases.
