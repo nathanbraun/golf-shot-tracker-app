@@ -34,14 +34,13 @@ interface ShotRecordingInputProps {
   onToggleEmojiTag: (emoji: string) => void
   onRecordShot: (isHoleOut?: boolean, isToGimme?: boolean) => void
   onStartShot: () => void
-  formatDistance: (distance: number, unit: "yards" | "feet") => string
+  formatDistance: (distance: number) => string
   getIntelligentUnit: (distance: string) => "yards" | "feet"
   getSliderRange: (
     shotType: string,
     startDistance?: number,
   ) => { min: number; max: number; default: number; step: number }
   getEmojiState: (emoji: string) => boolean
-  lastDistanceUnit: "yards" | "feet"
 }
 
 export default function ShotRecordingInput({
@@ -71,7 +70,6 @@ export default function ShotRecordingInput({
   getIntelligentUnit,
   getSliderRange,
   getEmojiState,
-  lastDistanceUnit,
 }: ShotRecordingInputProps) {
   const sliderRange = getSliderRange(selectedShotType, lastDistance)
   const currentDistanceNum = Number.parseInt(currentDistance) || 0
@@ -94,7 +92,7 @@ export default function ShotRecordingInput({
             Record Shot {currentShotNumber}
           </CardTitle>
           <div className="text-sm text-blue-600">
-            From {formatDistance(lastDistance, lastDistanceUnit)} • Par {currentPar}
+            From {formatDistance(lastDistance)} • Par {currentPar}
           </div>
         </CardHeader>
         <CardContent className="space-y-6 bg-white rounded-lg p-4 mx-2 mb-2">

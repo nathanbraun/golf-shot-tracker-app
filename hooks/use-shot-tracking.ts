@@ -32,6 +32,7 @@ interface LocalShot {
   isClutch: boolean
   isGimme: boolean // NEW: Track if this is a gimme shot
   timestamp: Date
+  distanceUnit?: "yards" | "feet" // NEW: Track the unit used for this distance
 }
 
 // Data conflict resolution options
@@ -89,7 +90,7 @@ export function useShotTracking() {
   const [selectedShotType, setShotType] = useState<string>("")
   const [shots, setShots] = useState<LocalShot[]>([])
   const [lastDistance, setLastDistance] = useState<number | null>(null)
-  const [lastDistanceUnit, setLastDistanceUnit] = useState<"yards" | "feet">("yards")
+  const [lastDistanceUnit, setLastDistanceUnit] = useState<"yards" | "feet">("yards") // NEW: Track unit for last distance
   const [isRecordingShot, setIsRecordingShot] = useState(false)
   const [showSplashScreen, setShowSplashScreen] = useState(false)
   const [currentHole, setCurrentHole] = useState<number>(1)
@@ -317,6 +318,7 @@ export function useShotTracking() {
           setCurrentPar(hole1.par)
           setCurrentDistance(hole1.distance.toString())
           setDistanceUnit("yards")
+          setLastDistanceUnit("yards")
           setCurrentShotNumber(1)
           setLastDistance(null)
           setIsRecordingShot(false)
@@ -365,6 +367,7 @@ export function useShotTracking() {
           setCurrentDistance(hole1.distance.toString())
         }
         setLastDistance(null)
+        setLastDistanceUnit("yards")
         setIsRecordingShot(false)
         setShowSplashScreen(false)
         setLastSyncTime(new Date())
@@ -388,6 +391,7 @@ export function useShotTracking() {
         isClutch: shot.is_clutch,
         isGimme: shot.is_gimme, // NEW: Load gimme flag from database
         timestamp: new Date(shot.created_at),
+        distanceUnit: shot.end_distance < 50 ? "feet" : "yards", // Infer unit based on distance
       }))
 
       setShots(localShots)
@@ -412,6 +416,7 @@ export function useShotTracking() {
             setCurrentDistance(nextHoleData.distance.toString())
           }
           setLastDistance(null)
+          setLastDistanceUnit("yards")
           setIsRecordingShot(false)
           setShowSplashScreen(false)
         } else {
@@ -423,7 +428,7 @@ export function useShotTracking() {
           setCurrentShotNumber(lastShot.shotNumber + 1)
           setCurrentPar(getParForHole(lastCompletedHole))
           setLastDistance(lastShot.endDistance)
-          setLastDistanceUnit(lastShot.endDistance < 50 ? "feet" : "yards")
+          setLastDistanceUnit(lastShot.distanceUnit || (lastShot.endDistance < 50 ? "feet" : "yards"))
           setCurrentDistance("")
           setIsRecordingShot(false)
           setShowSplashScreen(true) // Show splash to continue from last shot
@@ -713,7 +718,7 @@ export function useShotTracking() {
     const distance = Number.parseInt(currentDistance)
     if (distance && distance > 0 && currentPar) {
       setLastDistance(distance)
-      setLastDistanceUnit(distanceUnit)
+      setLastDistanceUnit(distanceUnit) // Store the unit used for this distance
       setShowSplashScreen(true)
       setCurrentDistance("")
     }
@@ -763,6 +768,7 @@ export function useShotTracking() {
         isClutch: isClutch,
         isGimme: isGimmeShot, // Mark as gimme if it was a team gimme
         timestamp: new Date(),
+        distanceUnit: distanceUnit, // Store the unit used for this shot
       }
 
       await saveShotToSupabase(newShot)
@@ -796,6 +802,7 @@ export function useShotTracking() {
           isClutch: false,
           isGimme: true, // Mark this as a gimme shot
           timestamp: new Date(),
+          distanceUnit: "feet", // Gimme putts are always in feet
         }
 
         // Save the gimme shot to database
@@ -817,11 +824,7 @@ export function useShotTracking() {
       setSelectedPlayerName("")
       setShotType("")
       setLastDistance(endDistance)
-      if (isToGimme) {
-        setLastDistanceUnit("feet")
-      } else {
-        setLastDistanceUnit(distanceUnit)
-      }
+      setLastDistanceUnit(distanceUnit) // Store the unit for the remaining distance
       setCurrentDistance("")
       setIsRecordingShot(false)
       setShowSplashScreen(true)
@@ -844,9 +847,9 @@ export function useShotTracking() {
     setCurrentPar(nextHolePar)
     setCurrentDistance(nextHoleDistance.toString())
     setDistanceUnit("yards")
+    setLastDistanceUnit("yards")
     setCurrentShotNumber(1)
     setLastDistance(null)
-    setLastDistanceUnit("yards")
     setIsRecordingShot(false)
     setShowSplashScreen(false)
     setSelectedPlayerName("")
@@ -866,8 +869,8 @@ export function useShotTracking() {
     setCurrentPar(prevHolePar)
     setCurrentDistance(prevHoleDistance.toString())
     setDistanceUnit("yards")
-    setLastDistance(null)
     setLastDistanceUnit("yards")
+    setLastDistance(null)
     setIsRecordingShot(false)
     setShowSplashScreen(false)
     setSelectedPlayerName("")
@@ -905,6 +908,7 @@ export function useShotTracking() {
       made: endDistance === 0,
       isNut: isNut,
       isClutch: isClutch,
+      distanceUnit: endDistance < 50 ? "feet" : "yards", // Update unit based on distance
     }
     const updatedShots = shots.map((shot) => {
       if (shot.id === editingShot.id) return updatedShot
@@ -925,13 +929,21 @@ export function useShotTracking() {
     setEditingShot(null)
   }
 
+  // Updated formatDistance function that respects the unit used
   const formatDistance = (distance: number, unit?: "yards" | "feet") => {
-    // If unit is provided, use it.
+    // If unit is explicitly provided, use it
     if (unit) {
-      return `${distance} ${unit === "feet" ? "ft" : "yards"}`
+      return unit === "feet" ? `${distance} ft` : `${distance} yards`
     }
-    // If no unit, use heuristic for backwards compatibility (shot history).
-    return `${distance} ${distance < 50 ? "ft" : "yards"}`
+
+    // For backwards compatibility, use the old logic if no unit provided
+    if (distance < 50) return `${distance} ft`
+    return `${distance} yards`
+  }
+
+  // New function to format distance with the correct unit from lastDistanceUnit
+  const formatLastDistance = (distance: number) => {
+    return formatDistance(distance, lastDistanceUnit)
   }
 
   const getDistanceColor = (distance: number) => {
@@ -1038,6 +1050,7 @@ export function useShotTracking() {
     setShotType,
     setShots,
     setLastDistance,
+    setLastDistanceUnit,
     setIsRecordingShot,
     setShowSplashScreen,
     setCurrentHole,
@@ -1076,6 +1089,7 @@ export function useShotTracking() {
     handleSaveEditedShot,
     handleDeleteShot,
     formatDistance,
+    formatLastDistance,
     getDistanceColor,
     getScoreInfo,
     getTotalScore,
