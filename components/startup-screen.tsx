@@ -19,6 +19,7 @@ interface StartupScreenProps {
   onTeamSelect: (team: Team) => void
   onPlayerSelect: (player: Player) => void
   onStartTracking: () => void
+  onShowSettings: () => void
 }
 
 export default function StartupScreen({
@@ -33,6 +34,7 @@ export default function StartupScreen({
   onTeamSelect,
   onPlayerSelect,
   onStartTracking,
+  onShowSettings,
 }: StartupScreenProps) {
   const handleRoundChange = (roundId: string) => {
     const round = rounds.find((r) => r.id === roundId)
@@ -74,10 +76,7 @@ export default function StartupScreen({
               variant="ghost"
               size="icon"
               className="absolute top-4 right-4 text-green-600 hover:text-green-700 hover:bg-green-100"
-              onClick={() => {
-                // TODO: Wire up PWA installation logic
-                console.log("Settings clicked - PWA installation will be implemented here")
-              }}
+              onClick={onShowSettings}
             >
               <Settings className="w-5 h-5" />
             </Button>
