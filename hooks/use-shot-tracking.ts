@@ -602,7 +602,11 @@ export function useShotTracking() {
     setSelectedRound(null)
     setSelectedTeam(null)
     setSelectedPlayer(null)
+
+    // Add this line to reload startup data when going back to setup
+    loadStartupData()
   }
+
 
   const getIntelligentUnit = (distance: string) => {
     const num = Number.parseInt(distance)
