@@ -612,14 +612,13 @@ export function useShotTracking() {
 
   const getSliderRange = (shotType: string, startDistance?: number) => {
     if (distanceUnit === "feet") {
-      const maxDistance = startDistance || 60
-      const minReasonableMax = 15
-      const actualMax = Math.max(maxDistance, minReasonableMax)
-      let defaultValue = Math.round(actualMax / 3)
+      // Cap the maximum range at 50 feet when unit is feet
+      const maxDistance = 50; // Changed from using startDistance to a fixed 50
+      let defaultValue = Math.round(maxDistance / 3)
       if (shotType === "Putt") {
-        defaultValue = Math.round(actualMax / 2)
+        defaultValue = Math.round(maxDistance / 2)
       }
-      return { min: 0, max: actualMax, default: defaultValue, step: 1 }
+      return { min: 0, max: maxDistance, default: defaultValue, step: 1 }
     }
 
     // If displaying in yards, convert the internal feet value to yards for the slider
@@ -649,7 +648,30 @@ export function useShotTracking() {
         typicalShotDistance = Math.min(100, maxDistance)
         break
     }
-    const remainingAfterTypicalShot = Math.max(0, maxDistance - typicalShotDistance)
+    let remainingAfterTypicalShot = 0
+    switch (shotType) {
+      case "Drive":
+        remainingAfterTypicalShot = Math.max(20, maxDistance - typicalShotDistance)
+        break
+      case "Approach":
+        remainingAfterTypicalShot = Math.max(20, maxDistance - typicalShotDistance)
+        break
+      case "Chip":
+        remainingAfterTypicalShot = Math.max(5, maxDistance - typicalShotDistance)
+        break
+      case "Putt":
+        remainingAfterTypicalShot = Math.max(2, maxDistance - typicalShotDistance)
+        break
+      case "Sand":
+        remainingAfterTypicalShot = Math.max(10, maxDistance - typicalShotDistance)
+        break
+      case "Recovery":
+        remainingAfterTypicalShot = Math.max(10, maxDistance - typicalShotDistance)
+        break
+      default:
+        remainingAfterTypicalShot = Math.max(5, maxDistance - typicalShotDistance)
+        break
+    }
     const step = shotType === "Putt" || shotType === "Chip" ? 1 : 5
     return { min: 0, max: maxDistance, default: remainingAfterTypicalShot, step: step }
   }
