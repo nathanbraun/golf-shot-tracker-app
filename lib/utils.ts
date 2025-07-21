@@ -24,7 +24,7 @@ export function yardsToFeet(yards: number): number {
  */
 export function shouldDisplayInFeet(distance: number, shotType?: string): boolean {
   // Always show putts in feet
-  if (shotType === "Putt" || shotType === "Chip") return true
+  if (shotType === "Putt") return true
   
   // Show short distances in feet
   if (distance < 30) return true
