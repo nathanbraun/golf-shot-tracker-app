@@ -98,7 +98,7 @@ export default function ShotRecordingInput({
         <CardContent className="space-y-6 bg-white rounded-lg p-4 mx-2 mb-2">
           {/* Player Selection */}
           <div className="space-y-3">
-            <Label className="text-base font-medium">Who hit this shot?</Label>
+            <Label className="text-base font-medium">Whose shot did you use?</Label>
             <div className="grid grid-cols-2 gap-3">
               {players.map((player) => (
                 <Button

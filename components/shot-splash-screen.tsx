@@ -15,7 +15,7 @@ interface ShotSplashScreenProps {
       name: string
     }
   } | null
-  formatDistance: (distance: number) => string
+  formatLastDistance: (distance: number) => string
   onContinue: () => void
 }
 
@@ -25,7 +25,7 @@ export default function ShotSplashScreen({
   currentShotNumber,
   lastDistance,
   selectedRound,
-  formatDistance,
+  formatLastDistance,
   onContinue,
 }: ShotSplashScreenProps) {
   return (
@@ -37,7 +37,7 @@ export default function ShotSplashScreen({
               <div className="text-2xl font-bold">Hole {currentHole}</div>
               <div className="text-green-100 text-sm">
                 Par {currentPar} • Shot {currentShotNumber}
-                {lastDistance && <span className="ml-2">• {formatDistance(lastDistance)} remaining</span>}
+                {lastDistance && <span className="ml-2">• {formatLastDistance(lastDistance)} remaining</span>}
               </div>
               {selectedRound?.course && <div className="text-green-100 text-xs mt-1">{selectedRound.course.name}</div>}
             </div>
@@ -54,11 +54,11 @@ export default function ShotSplashScreen({
               <p className="text-green-600">
                 {currentShotNumber === 1 ? (
                   <>
-                    Starting from <strong>{formatDistance(lastDistance!)}</strong>
+                    Starting from <strong>{formatLastDistance(lastDistance!)}</strong>
                   </>
                 ) : (
                   <>
-                    <strong>{formatDistance(lastDistance!)} out</strong>
+                    <strong>{formatLastDistance(lastDistance!)} out</strong>
                   </>
                 )}
               </p>
