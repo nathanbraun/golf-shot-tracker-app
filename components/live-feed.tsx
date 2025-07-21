@@ -386,23 +386,24 @@ export default function LiveFeed({ roundId, currentTeamId }: LiveFeedProps) {
                       completion.team_id === currentTeamId ? "border-blue-200 bg-blue-50" : "border-gray-200 bg-gray-50"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    {/* Make this flex-col on small screens */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 font-bold text-sm">
+                        <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 font-bold text-sm">
                           {completion.hole_number}
                         </div>
-                        <div>
-                          <div className="font-semibold">{completion.team?.name}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold truncate">{completion.team?.name}</div>
                           <div className="text-sm text-muted-foreground">
                             Par {completion.par} • {completion.total_shots} shots
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="flex items-center justify-between sm:justify-end sm:flex-col sm:items-end gap-2 mt-1 sm:mt-0">
                         <Badge className={`${getScoreColor(completion.score_to_par)} border-0`}>
                           {getScoreName(completion.score_to_par, completion.par)}
                         </Badge>
-                        <div className="text-xs text-muted-foreground mt-1">
+                        <div className="text-xs text-muted-foreground">
                           {formatTimeAgo(completion.completed_at)}
                         </div>
                       </div>
@@ -411,12 +412,12 @@ export default function LiveFeed({ roundId, currentTeamId }: LiveFeedProps) {
                     {/* Longest shot info */}
                     {completion.longest_shot_distance && completion.longest_shot_player && (
                       <div className="mt-2 pt-2 border-t border-gray-200">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Target className="w-3 h-3" />
-                          <span>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <Target className="w-3 h-3 flex-shrink-0" />
+                          <span className="flex-shrink-0">
                             Longest shot: {formatDistanceUtil(completion.longest_shot_distance, completion.longest_shot_type)}
                           </span>
-                          <span>
+                          <span className="truncate">
                             ({completion.longest_shot_type} by {completion.longest_shot_player?.name})
                           </span>
                         </div>
