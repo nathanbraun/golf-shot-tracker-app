@@ -115,21 +115,27 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
 
   const sortedPlayers = Object.entries(playerStats).sort(([, a], [, b]) => b.totalShots - a.totalShots)
 
-  // Get consistent player colors across all charts
+  // Modify the getPlayerColorForName function to return both class name and actual color value
   const getPlayerColorForName = (playerName: string) => {
-    const playerColorMap: Record<string, string> = {
-      Brusda: "bg-blue-500",
-      Nate: "bg-green-500",
-      Mikey: "bg-yellow-500",
-      Strauss: "bg-purple-500",
-      "Team Gimme": "bg-gray-400",
+    const playerColorMap: Record<string, { class: string, color: string }> = {
+      Brusda: { class: "bg-blue-500", color: "#3b82f6" },  // blue-500
+      Nate: { class: "bg-green-500", color: "#22c55e" },   // green-500
+      Mikey: { class: "bg-yellow-500", color: "#eab308" }, // yellow-500
+      Strauss: { class: "bg-purple-500", color: "#a855f7" }, // purple-500
+      "Team Gimme": { class: "bg-gray-400", color: "#9ca3af" }, // gray-400
     }
-    return playerColorMap[playerName] || "bg-red-500"
+    return playerColorMap[playerName] || { class: "bg-red-500", color: "#ef4444" } // red-500 as fallback
   }
 
-  // Get player colors for the bar chart (keep for backwards compatibility)
+  // Update the getPlayerColor function as well (for backwards compatibility)
   const getPlayerColor = (index: number) => {
-    const colors = ["bg-blue-500", "bg-green-500", "bg-yellow-500", "bg-purple-500", "bg-red-500"]
+    const colors = [
+      { class: "bg-blue-500", color: "#3b82f6" },
+      { class: "bg-green-500", color: "#22c55e" },
+      { class: "bg-yellow-500", color: "#eab308" },
+      { class: "bg-purple-500", color: "#a855f7" },
+      { class: "bg-red-500", color: "#ef4444" }
+    ]
     return colors[index % colors.length]
   }
 
@@ -180,12 +186,17 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
             {sortedPlayers.map(([player, stats], index) => {
               const percentage = Math.round((stats.totalShots / totalShots) * 100)
               const avgPlayerDistance = Math.round(stats.totalDistance / stats.totalShots)
+              const playerColor = getPlayerColorForName(player)
 
               return (
                 <div key={player} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Badge variant={index === 0 ? "default" : "outline"} className="w-16 justify-center">
+                      {/* Customize the badge for the winner */}
+                      <Badge 
+                        variant={index === 0 ? "outline" : "outline"} 
+                        className={`w-16 justify-center ${index === 0 ? "border-yellow-400 text-yellow-500" : ""}`}
+                      >
                         {index === 0 ? "🏆" : `#${index + 1}`}
                       </Badge>
                       <div>
@@ -201,7 +212,16 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                       <div className="text-sm text-muted-foreground">of shots</div>
                     </div>
                   </div>
-                  <Progress value={percentage} className="h-2" />
+                  {/* Custom progress bar implementation */}
+                  <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500 ease-out"
+                      style={{ 
+                        width: `${percentage}%`, 
+                        backgroundColor: playerColor.color 
+                      }}
+                    ></div>
+                  </div>
                   <div className="flex gap-2 flex-wrap">
                     {Object.entries(stats.shotTypes).map(([type, count]) => (
                       <Badge key={type} variant="secondary" className="text-xs">
@@ -217,7 +237,7 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
         </CardContent>
       </Card>
 
-      {/* Shot Type Breakdown */}
+      {/* Shot Type Analysis */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -229,15 +249,34 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
           <div className="grid grid-cols-2 gap-4">
             {Object.entries(shotTypeStats)
               .sort(([, a], [, b]) => b - a)
-              .map(([type, count]) => {
+              .map(([type, count], index) => {
                 const percentage = Math.round((count / totalShots) * 100)
+                // Use a different color for each shot type
+                const shotTypeColors = [
+                  "#3b82f6", // blue-500
+                  "#22c55e", // green-500
+                  "#eab308", // yellow-500
+                  "#a855f7", // purple-500
+                  "#ef4444"  // red-500
+                ]
+                const color = shotTypeColors[index % shotTypeColors.length]
+                
                 return (
                   <div key={type} className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="font-medium">{type}</span>
                       <span className="text-sm text-muted-foreground">{count} shots</span>
                     </div>
-                    <Progress value={percentage} className="h-2" />
+                    {/* Custom progress bar implementation */}
+                    <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all duration-500 ease-out"
+                        style={{ 
+                          width: `${percentage}%`, 
+                          backgroundColor: color 
+                        }}
+                      ></div>
+                    </div>
                     <div className="text-xs text-muted-foreground">{percentage}% of total</div>
                   </div>
                 )
@@ -286,7 +325,7 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                 percentage: Math.round(percentage),
                 startAngle,
                 angle,
-                color: getPlayerColorForName(player).replace("bg-", ""),
+                color: getPlayerColorForName(player).color, // Use the actual color value
               }
             })
 
@@ -321,7 +360,8 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                           <path
                             key={slice.player}
                             d={pathData}
-                            className={`fill-${slice.color} stroke-white stroke-2`}
+                            style={{ fill: slice.color }} // Use inline style instead of className
+                            className="stroke-white stroke-2"
                           />
                         )
                       })}
@@ -337,7 +377,7 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                 <div className="grid grid-cols-2 gap-2">
                   {sortedDriveStats.map(([player, count], index) => (
                     <div key={player} className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded ${getPlayerColorForName(player)}`}></div>
+                      <div className={`w-4 h-4 rounded ${getPlayerColorForName(player).class}`}></div>
                       <span className="text-sm font-medium">{player}</span>
                       <span className="text-sm text-muted-foreground">
                         {count} ({Math.round((count / totalDrives) * 100)}%)
@@ -393,7 +433,7 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                 percentage: Math.round(percentage),
                 startAngle,
                 angle,
-                color: getPlayerColorForName(player).replace("bg-", ""),
+                color: getPlayerColorForName(player).color, // Use the actual color value
               }
             })
 
@@ -428,7 +468,8 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                           <path
                             key={slice.player}
                             d={pathData}
-                            className={`fill-${slice.color} stroke-white stroke-2`}
+                            style={{ fill: slice.color }} // Use inline style instead of className
+                            className="stroke-white stroke-2"
                           />
                         )
                       })}
@@ -444,7 +485,7 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                 <div className="grid grid-cols-2 gap-2">
                   {sortedApproachStats.map(([player, count], index) => (
                     <div key={player} className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded ${getPlayerColorForName(player)}`}></div>
+                      <div className={`w-4 h-4 rounded ${getPlayerColorForName(player).class}`}></div>
                       <span className="text-sm font-medium">{player}</span>
                       <span className="text-sm text-muted-foreground">
                         {count} ({Math.round((count / totalApproaches) * 100)}%)
@@ -498,7 +539,7 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                 percentage: Math.round(percentage),
                 startAngle,
                 angle,
-                color: getPlayerColorForName(player).replace("bg-", ""),
+                color: getPlayerColorForName(player).color, // Use the actual color value
               }
             })
 
@@ -533,7 +574,8 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                           <path
                             key={slice.player}
                             d={pathData}
-                            className={`fill-${slice.color} stroke-white stroke-2`}
+                            style={{ fill: slice.color }} // Use inline style instead of className
+                            className="stroke-white stroke-2"
                           />
                         )
                       })}
@@ -549,7 +591,7 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                 <div className="grid grid-cols-2 gap-2">
                   {sortedPuttStats.map(([player, count], index) => (
                     <div key={player} className="flex items-center gap-2">
-                      <div className={`w-4 h-4 rounded ${getPlayerColorForName(player)}`}></div>
+                      <div className={`w-4 h-4 rounded ${getPlayerColorForName(player).class}`}></div>
                       <span className="text-sm font-medium">{player}</span>
                       <span className="text-sm text-muted-foreground">
                         {count} ({Math.round((count / totalPutts) * 100)}%)
@@ -574,9 +616,9 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { emoji: "💦", label: "Nut Shots", count: shots.filter((shot) => shot.isNut).length },
-              { emoji: "🛟", label: "Clutch Shots", count: shots.filter((shot) => shot.isClutch).length },
-            ].map(({ emoji, label, count }) => {
+              { emoji: "💦", label: "Nut Shots", count: shots.filter((shot) => shot.isNut).length, color: "#3b82f6" },
+              { emoji: "🛟", label: "Clutch Shots", count: shots.filter((shot) => shot.isClutch).length, color: "#22c55e" },
+            ].map(({ emoji, label, count, color }) => {
               const percentage = totalShots > 0 ? Math.round((count / totalShots) * 100) : 0
               return (
                 <div key={emoji} className="space-y-2">
@@ -587,7 +629,16 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                     </span>
                     <span className="text-sm text-muted-foreground">{count} shots</span>
                   </div>
-                  <Progress value={percentage} className="h-2" />
+                  {/* Custom progress bar implementation */}
+                  <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500 ease-out"
+                      style={{ 
+                        width: `${percentage}%`, 
+                        backgroundColor: color 
+                      }}
+                    ></div>
+                  </div>
                   <div className="text-xs text-muted-foreground">{percentage}% of total</div>
                 </div>
               )
@@ -609,6 +660,7 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
             {sortedPlayers.map(([player, stats], index) => {
               const maxShots = Math.max(...sortedPlayers.map(([, s]) => s.totalShots))
               const barWidth = (stats.totalShots / maxShots) * 100
+              const playerColor = getPlayerColorForName(player)
 
               return (
                 <div key={player} className="space-y-2">
@@ -619,7 +671,7 @@ export default function SummaryPage({ shots }: SummaryPageProps) {
                   <div className="relative">
                     <div className="w-full bg-gray-200 rounded-full h-8 flex items-center">
                       <div
-                        className={`h-8 rounded-full ${getPlayerColorForName(player)} flex items-center justify-end pr-3 transition-all duration-500 ease-out`}
+                        className={`h-8 rounded-full ${playerColor.class} flex items-center justify-end pr-3 transition-all duration-500 ease-out`}
                         style={{ width: `${barWidth}%` }}
                       >
                         <span className="text-white text-sm font-medium">
