@@ -1,5 +1,6 @@
 "use client"
 
+import { feetToYards, shouldDisplayInFeet, formatDistance as formatDistanceUtil } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -412,7 +413,9 @@ export default function LiveFeed({ roundId, currentTeamId }: LiveFeedProps) {
                       <div className="mt-2 pt-2 border-t border-gray-200">
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Target className="w-3 h-3" />
-                          <span>Longest shot: {completion.longest_shot_distance} yards</span>
+                          <span>
+                            Longest shot: {formatDistanceUtil(completion.longest_shot_distance, completion.longest_shot_type)}
+                          </span>
                           <span>
                             ({completion.longest_shot_type} by {completion.longest_shot_player?.name})
                           </span>
