@@ -315,3 +315,46 @@ if (distanceUnit === "feet") {
 - Add analytics to track installation attempts and success rates
 - Test installation behavior across a wider range of devices and browsers
 - Consider adding offline mode indicators to show when app is running as installed PWA
+
+### Updated Hole Summary to Show Skins Leaderboard (2025-07-22)
+
+#### Files Modified
+- `/components/hole-summary.tsx`
+- `/lib/utils.ts`
+
+#### Purpose of Changes
+Modified the hole summary component to remove unused sections and add a skins leaderboard. This change provides users with more relevant information about skins won throughout the tournament while streamlining the UI.
+
+#### Key Implementation Details
+1. **Removed sections from hole-summary.tsx:**
+   - "Player Contributions" section
+   - "Hole n - Other Teams" section
+   - "Tournament Leaderboard" section
+
+2. **Added new Skins Leaderboard section:**
+   - Shows all teams and their total skins
+   - Displays which specific holes each team won skins on
+   - Indicates carryover holes with special formatting
+   - Shows the highest hole number each team has completed
+
+3. **Extracted utility function to utils.ts:**
+   - Added `calculateSkins()` function to compute skin results from hole completions
+   - Created reusable interfaces `SkinResult` and `TeamSkinsSummary`
+   - Implemented algorithm to handle carryover skins when holes are tied
+
+#### Design Decisions
+- Maintained consistent styling with the rest of the hole-summary component
+- Added a refresh button to allow users to update skins data on demand
+- Highlighted the current team with special styling for better visibility
+- Added "Through hole X" information to provide context about each team's progress
+- Preserved detailed information about carryover holes for transparency
+
+#### New Dependencies
+- No new external dependencies were introduced
+- Internal dependency on the hole completions API for data retrieval
+
+#### TODO Items
+- Consider adding animations when new skins are won
+- Potentially add a more detailed view of skins history
+- Optimize data fetching to reduce redundant API calls between components
+- Add unit tests for the `calculateSkins()` utility function
