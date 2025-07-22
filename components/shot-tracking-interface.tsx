@@ -53,6 +53,7 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     editStartDistance,
     editEndDistance,
     isSyncing,
+    isReviewingPreviousHole, // Add this line
     setCurrentView,
     setCurrentDistance,
     setSelectedPlayerName,
@@ -73,6 +74,8 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
     handleRecordShot,
     handleContinueToNextHole,
     handlePreviousHole,
+    handleReturnToCurrentHole, // Add this line
+    handleNavigateToHole, // Add this line
     handleSelectCourse,
     handleEditShot,
     handleSaveEditedShot,
@@ -359,6 +362,9 @@ export default function ShotTrackingInterface(props: ReturnType<typeof useShotTr
         formatDistance={formatDistance}
         getDistanceColor={getDistanceColor}
         onContinueToNextHole={handleContinueToNextHole}
+        isReviewingPreviousHole={isReviewingPreviousHole}
+        onReturnToCurrentHole={handleReturnToCurrentHole}
+        onNavigateToHole={handleNavigateToHole} // Add this line
       />
     )
   }

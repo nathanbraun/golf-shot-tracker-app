@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { RefreshCw, Flag, BarChart3, Target, MapPin, Award } from "lucide-react"
+import { RefreshCw, Flag, BarChart3, Target, MapPin, Award, ArrowLeft, ArrowRight } from "lucide-react"
 import { holeCompletionsApi, type Round, type Team, type CourseHole } from "@/lib/supabase"
 
 interface LocalShot {
@@ -49,6 +49,9 @@ interface HoleSummaryProps {
   formatDistance: (distance: number, unit?: "yards" | "feet") => string
   getDistanceColor: (distance: number) => string
   onContinueToNextHole: () => void
+  isReviewingPreviousHole?: boolean
+  onReturnToCurrentHole?: () => void
+  onNavigateToHole?: (holeNumber: number) => void
 }
 
 export default function HoleSummary({
@@ -63,6 +66,9 @@ export default function HoleSummary({
   formatDistance,
   getDistanceColor,
   onContinueToNextHole,
+  isReviewingPreviousHole = false,
+  onReturnToCurrentHole = () => {},
+  onNavigateToHole = () => {},
 }: HoleSummaryProps) {
   const [teamSkinsSummary, setTeamSkinsSummary] = useState<TeamSkinsSummary[]>([])
   const [allCompletions, setAllCompletions] = useState<any[]>([])
@@ -94,6 +100,10 @@ export default function HoleSummary({
   useEffect(() => {
     loadLiveData()
   }, [selectedRound, selectedTeam, currentHole])
+
+  // Get all completed holes
+  const completedHoles = [...new Set(shots.map(shot => shot.hole))].sort((a, b) => a - b)
+  const currentActiveHole = Math.max(...completedHoles)
 
   return (
     <div className="min-h-screen bg-green-50 p-4">
@@ -142,7 +152,7 @@ export default function HoleSummary({
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
                 <div className="text-2xl font-bold text-blue-600">{currentHole}</div>
-                <div className="text-sm text-muted-foreground">Holes Complete</div>
+                <div className="text-sm text-muted-foreground">Current Hole</div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-green-600">{shots.length}</div>
@@ -157,6 +167,61 @@ export default function HoleSummary({
             </div>
           </CardContent>
         </Card>
+
+        {/* Navigation Buttons - Moved here */}
+        {isReviewingPreviousHole && (
+          <div className="flex justify-between gap-2">
+            {/* Previous Hole Button */}
+            <Button
+              onClick={() => {
+                const prevHole = currentHole - 1;
+                if (prevHole >= 1) {
+                  const prevHoleShots = shots.filter((shot) => shot.hole === prevHole);
+                  if (prevHoleShots.length > 0) {
+                    onNavigateToHole(prevHole);
+                  }
+                }
+              }}
+              variant="outline"
+              size="sm"
+              className="flex-1 flex items-center justify-center gap-1"
+              disabled={currentHole <= 1 || !shots.some(shot => shot.hole === currentHole - 1)}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Previous
+            </Button>
+            
+            {/* Return to Current Button */}
+            <Button
+              onClick={onReturnToCurrentHole}
+              size="sm"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1"
+            >
+              Return to Current
+            </Button>
+            
+            {/* Next Hole Button */}
+            <Button
+              onClick={() => {
+                const nextHole = currentHole + 1;
+                if (nextHole <= 18) {
+                  const nextHoleShots = shots.filter((shot) => shot.hole === nextHole);
+                  if (nextHoleShots.length > 0) {
+                    onNavigateToHole(nextHole);
+                  }
+                }
+              }}
+              variant="outline"
+              size="sm"
+              className="flex-1 flex items-center justify-center gap-1"
+              disabled={currentHole >= currentActiveHole || !shots.some(shot => shot.hole === currentHole + 1)}
+            >
+              Next
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
 
         {/* Hole Breakdown */}
         <Card>
@@ -282,7 +347,7 @@ export default function HoleSummary({
         </Card>
 
         {/* Next Hole Preview */}
-        {currentHole < 18 && courseHoles.length > 0 && (
+        {!isReviewingPreviousHole && currentHole < 18 && courseHoles.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -310,7 +375,7 @@ export default function HoleSummary({
           </Card>
         )}
 
-        {/* Continue Button */}
+      {!isReviewingPreviousHole && (
         <div className="flex justify-center pt-4">
           <Button
             onClick={onContinueToNextHole}
@@ -321,6 +386,7 @@ export default function HoleSummary({
             {currentHole < 18 ? `Tee Off Hole ${currentHole + 1}` : "Finish Round"}
           </Button>
         </div>
+      )}
       </div>
     </div>
   )

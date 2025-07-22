@@ -102,6 +102,8 @@ export function useShotTracking() {
   const [showMoreOptions, setShowMoreOptions] = useState(false)
   const [showHoleSummary, setShowHoleSummary] = useState(false)
 
+  const [isReviewingPreviousHole, setIsReviewingPreviousHole] = useState(false)
+
   // Shot editing state
   const [editingShot, setEditingShot] = useState<LocalShot | null>(null)
   const [editStartDistance, setEditStartDistance] = useState<string>("")
@@ -129,11 +131,62 @@ export function useShotTracking() {
     }
   }
 
+  const handleNavigateToHole = (holeNumber: number) => {
+    if (holeNumber < 1 || holeNumber > 18) return;
+    
+    // Check if the hole has any shots (i.e., it's been played)
+    const holeShots = shots.filter((shot) => shot.hole === holeNumber);
+    
+    if (holeShots.length > 0) {
+      // Hole has been played, show the hole summary
+      setCurrentHole(holeNumber);
+      setCurrentPar(getParForHole(holeNumber));
+      setShowHoleSummary(true);
+      setIsReviewingPreviousHole(true);
+    }
+  }
+
   // Clear tracking state from localStorage
   const clearTrackingState = () => {
     Object.values(STORAGE_KEYS).forEach((key) => {
       localStorage.removeItem(key)
     })
+  }
+
+  const handleReturnToCurrentHole = () => {
+    // Get the current "active" hole (the one we were on before reviewing)
+    const activeHole = isReviewingPreviousHole ? currentHole + 1 : currentHole;
+    
+    setCurrentHole(activeHole);
+    setShowHoleSummary(false);
+    setIsReviewingPreviousHole(false);
+    
+    // Reset the current hole's state
+    const activeHolePar = getParForHole(activeHole);
+    const activeHoleDistance = getDistanceForHole(activeHole);
+    
+    setCurrentPar(activeHolePar);
+    setCurrentDistance(feetToYards(activeHoleDistance).toString());
+    setDistanceUnit("yards");
+    
+    // Check if we have shots for this hole to determine the shot number
+    const activeHoleShots = shots.filter((shot) => shot.hole === activeHole);
+    if (activeHoleShots.length > 0) {
+      // We're in the middle of playing this hole, so set up for the next shot
+      const maxShotNumber = Math.max(...activeHoleShots.map(shot => shot.shotNumber));
+      const lastShot = activeHoleShots.find(shot => shot.shotNumber === maxShotNumber);
+      
+      setCurrentShotNumber(maxShotNumber + 1);
+      setLastDistance(lastShot ? lastShot.endDistance : null);
+      setIsRecordingShot(false);
+      setShowSplashScreen(!!lastShot); // Show splash screen if we have a last shot
+    } else {
+      // We haven't started this hole yet
+      setCurrentShotNumber(1);
+      setLastDistance(null);
+      setIsRecordingShot(false);
+      setShowSplashScreen(false);
+    }
   }
 
   // Check for existing tracking state on load
@@ -506,6 +559,14 @@ export function useShotTracking() {
     if (!selectedTeam || !selectedRound || holeShots.length === 0) return
 
     try {
+      // Sort shots by shot number to ensure correct sequence
+      const sortedShots = [...holeShots].sort((a, b) => a.shotNumber - b.shotNumber);
+      
+      // Create player sequence string
+      const playerSequence = sortedShots
+        .map(shot => shot.isGimme ? "Gimme" : shot.player)
+        .join(" → ");
+      
       // Filter out gimme shots when finding the longest shot for completion stats
       const nonGimmeShots = holeShots.filter((shot) => !shot.isGimme)
       const longestShot =
@@ -528,6 +589,7 @@ export function useShotTracking() {
         longest_shot_distance: longestShot.calculatedDistance,
         longest_shot_player_id: longestShotPlayer?.id,
         longest_shot_type: longestShot.shotType,
+        player_sequence: playerSequence, // Add this line
       }
 
       await holeCompletionsApi.upsertCompletion(completion)
@@ -889,22 +951,36 @@ export function useShotTracking() {
   const handlePreviousHole = () => {
     if (currentHole <= 1) return
     const prevHole = currentHole - 1
-    setCurrentHole(prevHole)
-    setIsNut(false)
-    setIsClutch(false)
-    const prevHolePar = getParForHole(prevHole)
-    const prevHoleDistance = getDistanceForHole(prevHole)
-    console.log(`DEBUG: Setting up hole ${prevHole}: par ${prevHolePar}, distance ${feetToYards(prevHoleDistance)} yards`)
-    setCurrentPar(prevHolePar)
-    // For display, show in yards but store as feet internally
-    setCurrentDistance(feetToYards(prevHoleDistance).toString())
-    setDistanceUnit("yards")
-    setLastDistance(null)
-    setIsRecordingShot(false)
-    setShowSplashScreen(false)
-    setSelectedPlayerName("")
-    setShotType("")
-    setCurrentShotNumber(1)
+    
+    // Check if the previous hole has any shots (i.e., it's been played)
+    const prevHoleShots = shots.filter((shot) => shot.hole === prevHole)
+    
+    if (prevHoleShots.length > 0) {
+      // Previous hole has been played, show the hole summary
+      setCurrentHole(prevHole)
+      setCurrentPar(getParForHole(prevHole))
+      setShowHoleSummary(true)
+      // Set this flag to indicate we're reviewing a previous hole
+      setIsReviewingPreviousHole(true)
+    } else {
+      // Previous hole hasn't been played, show the regular interface
+      setCurrentHole(prevHole)
+      setIsNut(false)
+      setIsClutch(false)
+      const prevHolePar = getParForHole(prevHole)
+      const prevHoleDistance = getDistanceForHole(prevHole)
+      console.log(`DEBUG: Setting up hole ${prevHole}: par ${prevHolePar}, distance ${feetToYards(prevHoleDistance)} yards`)
+      setCurrentPar(prevHolePar)
+      // For display, show in yards but store as feet internally
+      setCurrentDistance(feetToYards(prevHoleDistance).toString())
+      setDistanceUnit("yards")
+      setLastDistance(null)
+      setIsRecordingShot(false)
+      setShowSplashScreen(false)
+      setSelectedPlayerName("")
+      setShotType("")
+      setCurrentShotNumber(1)
+    }
   }
 
   const handleSelectCourse = (course: any) => {
@@ -1111,5 +1187,8 @@ export function useShotTracking() {
     getParForHole,
     getDistanceForHole,
     getLastPlayerOnHole,
+    isReviewingPreviousHole,
+    handleReturnToCurrentHole,
+    handleNavigateToHole,
   }
 }

@@ -423,6 +423,7 @@ export interface TeamHoleCompletion {
   longest_shot_distance?: number
   longest_shot_player_id?: string
   longest_shot_type?: string
+  player_sequence?: string  // Add this line
   created_at: string
   updated_at: string
   // Optional joined data

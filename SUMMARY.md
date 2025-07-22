@@ -358,3 +358,80 @@ Modified the hole summary component to remove unused sections and add a skins le
 - Potentially add a more detailed view of skins history
 - Optimize data fetching to reduce redundant API calls between components
 - Add unit tests for the `calculateSkins()` utility function
+
+### Added Player Sequence to Recent Activity (2025-07-22)
+
+#### Files Modified
+- `/lib/supabase.ts`
+- `/hooks/use-shot-tracking.ts`
+- `/components/live-feed.tsx`
+- Database schema: `team_hole_completions` table
+
+#### Purpose
+Enhanced the Recent Activity card in the Live Feed to show the sequence of players who took shots on each hole (e.g., "Nate → Mikey → Pdizz → Nate") instead of only showing the longest shot information. This provides a more complete picture of how each hole was played.
+
+#### Implementation Details
+1. **Database Schema Change**:
+   - Added a `player_sequence` TEXT column to the `team_hole_completions` table to store the sequence of players
+   - Added appropriate TypeScript type definition in `supabase.ts`
+
+2. **Shot Tracking Logic**:
+   - Modified the `createHoleCompletion` function in `use-shot-tracking.ts` to:
+     - Sort shots by shot number
+     - Generate a player sequence string with arrow separators
+     - Store this string in the new `player_sequence` field
+
+3. **UI Updates**:
+   - Updated the Recent Activity card in `live-feed.tsx` to display the player sequence
+   - Added a fallback to the original longest shot display for backward compatibility with existing data
+   - Used the `Users` icon instead of `Target` icon for the player sequence to visually distinguish it
+
+#### Design Decisions
+- **Storage vs. Computation**: Chose to store the player sequence as a pre-computed string in the database rather than calculating it on-demand. This improves performance by avoiding multiple API calls and ensures consistency across all clients.
+- **Backward Compatibility**: Maintained support for displaying longest shot information when the player sequence is not available, ensuring a smooth transition for existing data.
+- **Format**: Used the "→" arrow character as a separator to clearly indicate the sequence of play.
+
+#### Dependencies
+- No new dependencies were introduced.
+
+#### TODO/Follow-up
+- Consider adding a migration script to populate the `player_sequence` field for existing hole completions
+- Evaluate adding player statistics based on the sequence data (e.g., which player most frequently completes holes)
+- Consider adding visual styling to highlight different players in the sequence
+
+### Improved Hole Navigation with Previous Hole Summaries (2025-07-22)
+
+#### Files Modified
+- `/hooks/use-shot-tracking.ts`
+- `/components/hole-summary.tsx`
+- `/components/shot-tracking-interface.tsx`
+
+#### Purpose of the Changes
+Enhanced the "Previous Hole" navigation feature to display the hole summary view when visiting previously completed holes, rather than showing the default shot tracking interface. This provides users with a more contextually appropriate view when reviewing completed holes.
+
+#### Key Implementation Details
+1. Added a new state variable `isReviewingPreviousHole` to track when a user is reviewing a previously completed hole
+2. Modified the `handlePreviousHole()` function to check if the previous hole has shots recorded:
+   - If shots exist, it shows the hole summary view
+   - If no shots exist, it shows the regular shot tracking interface
+3. Enhanced `HoleSummary` component with navigation controls:
+   - Added "Previous Hole" and "Next Hole" buttons to navigate between completed holes
+   - Added "Return to Current" button to return to the active hole
+4. Positioned navigation buttons under the "Round Status" section for better visibility
+5. Added a `handleNavigateToHole()` function to facilitate navigation between completed holes
+6. Added a `handleReturnToCurrentHole()` function to return to the current active hole
+
+#### Design Decisions
+- Placed navigation controls at the top of the summary view for better discoverability
+- Used smaller buttons with consistent styling to maintain UI cohesion
+- Disabled navigation buttons when they would lead to holes with no recorded shots
+- Maintained the original "Tee Off Next Hole" button at the bottom when not in review mode
+- Used consistent visual language with the rest of the application
+
+#### New Dependencies
+- No new dependencies were introduced
+
+#### TODO Items
+- Consider adding a visual indicator in the hole list to show which holes have been completed
+- Evaluate adding a quick-jump selector to navigate directly to any completed hole
+- Consider caching hole summary data to improve performance when navigating between holes

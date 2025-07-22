@@ -409,8 +409,23 @@ export default function LiveFeed({ roundId, currentTeamId }: LiveFeedProps) {
                       </div>
                     </div>
 
-                    {/* Longest shot info */}
-                    {completion.longest_shot_distance && completion.longest_shot_player && (
+                    {/* Player sequence */}
+                    {completion.player_sequence && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <Users className="w-3 h-3 flex-shrink-0" />
+                          <span className="flex-shrink-0">
+                            Player sequence:
+                          </span>
+                          <span className="truncate font-medium">
+                            {completion.player_sequence}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Show longest shot as fallback if player sequence is not available */}
+                    {!completion.player_sequence && completion.longest_shot_distance && completion.longest_shot_player && (
                       <div className="mt-2 pt-2 border-t border-gray-200">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           <Target className="w-3 h-3 flex-shrink-0" />
