@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Target, ToggleLeft, ToggleRight, Settings, ArrowDown } from "lucide-react"
-import { feetToYards, yardsToFeet, shouldDisplayInFeet } from "@/lib/utils"
 
 const SHOT_TYPES = ["Drive", "Approach", "Chip", "Putt", "Sand", "Recovery"]
 const EMOJI_TAGS = ["💦", "🛟"]
@@ -111,13 +110,15 @@ export default function ShotRecordingInput({
                   {player}
                 </Button>
               ))}
-              <Button
-                variant={selectedPlayerName === "Team Gimme" ? "default" : "outline"}
-                onClick={() => onPlayerSelect("Team Gimme")}
-                className="h-14 col-span-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-base font-medium"
-              >
-                🤝 Team Gimme
-              </Button>
+              {lastDistance < 10 && (
+                <Button
+                  variant={selectedPlayerName === "Team Gimme" ? "default" : "outline"}
+                  onClick={() => onPlayerSelect("Team Gimme")}
+                  className="h-14 col-span-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-base font-medium"
+                >
+                  🤝 Team Gimme
+                </Button>
+              )}
             </div>
           </div>
 
