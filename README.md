@@ -20,7 +20,7 @@ This app helps you track shots during golf scrambles. Instead of just keeping sc
 ### 1. Start your round
 Pick your event, select your team, and choose who you are.
 
-![Startup Screen](fig/startup-screen.jpg)
+<img alt="Startup Screen" src="./fig/startup-screen.jpg" width="45%">
 
 ### 2. Track shots as you play
 After each shot (before on tee shots) you enter:
