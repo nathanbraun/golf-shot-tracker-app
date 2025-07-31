@@ -51,7 +51,7 @@ Note gimme putts aren't assigned to any one player since anyone can make them.
 After each hole, the app will show where you're at.
 
 <p align="center">
-![Hole Summary](fig/hole-summary.jpg)
+  <img alt="Hole Summary" src="./fig/hole-summary.jpg" width="45%">
 </p>
 
 ### 4. Live Feed
