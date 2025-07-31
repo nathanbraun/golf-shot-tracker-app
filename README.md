@@ -58,9 +58,9 @@ After each hole, the app will show where you're at.
 At any time, click the trophy at the top to see a live feed of how every team is doing.
 
 <p align="center">
-  <img alt="Standings" src="./fig/live-feed-01.jpg" width="45%">
+  <img alt="Standings" src="./fig/leaderboard-01.jpg" width="45%">
 &nbsp; &nbsp; &nbsp; &nbsp;
-  <img alt="Recent Activity" src="./fig/live-feed-02.jpg" width="45%">
+  <img alt="Recent Activity" src="./fig/leaderboard-02.jpg" width="45%">
 </p>
 
 ### 5. View stats
