@@ -20,7 +20,9 @@ This app helps you track shots during golf scrambles. Instead of just keeping sc
 ### 1. Start your round
 Pick your event, select your team, and choose who you are.
 
+<p align="center">
 <img alt="Startup Screen" src="./fig/startup-screen.jpg" width="45%">
+</p>
 
 ### 2. Track shots as you play
 After each shot (before on tee shots) you enter:
@@ -48,18 +50,25 @@ Note gimme putts aren't assigned to any one player since anyone can make them.
 ### 3. See your progress
 After each hole, the app will show where you're at.
 
+<p align="center">
 ![Hole Summary](fig/hole-summary.jpg)
+</p>
 
 ### 4. Live Feed
 At any time, click the trophy at the top to see a live feed of how every team is doing.
 
-![Standings](fig/live-feed-01.jpg)
-![Recent Activity](fig/live-feed-02.jpg)
+<p align="center">
+  <img alt="Standings" src="./fig/live-feed-01.jpg" width="45%">
+&nbsp; &nbsp; &nbsp; &nbsp;
+  <img alt="Recent Activity" src="./fig/live-feed-02.jpg" width="45%">
+</p>
 
 ### 5. View stats
 Or click the bar chart icon on the right to see a team breakdown.
 
-![Team Summary](fig/team-summary.jpg)
+<p align="center">
+  <img alt="Team Summary" src="./fig/team-summary.jpg" width="45%">
+</p>
 
 ## 🚀 Getting Started
 
