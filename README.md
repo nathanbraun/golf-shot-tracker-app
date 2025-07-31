@@ -8,7 +8,7 @@ A mobile-friendly app for tracking golf scramble tournaments. Keep track of ever
 
 ## What is this?
 
-This app helps you track shots during golf scrambles. Instead of just keeping score, you'll track every shot your team takes - who hit it, what type of shot, and how far it went. The app calculates stats, shows live leaderboards, and keeps track of skins/money owed.
+This app helps you track shots during golf scrambles. Instead of keeping score/reporting to Whatsapp, one person tracks every shot your team takes - who hit it, what type of shot, and how far it went. The app calculates stats, shows live leaderboards, and keeps track of skins/money owed.
 
 ## ✨ Key Features
 
@@ -57,7 +57,7 @@ After each hole, the app will show where you're at.
 </p>
 
 ### 4. Live Feed
-At any time, click the trophy at the top to see a live feed of how every team is doing.
+At any time, click the trophy at the top to see a live feed of how every team is doing. The replaces reporting "birdie" and "bogey" in Whatsapp.
 
 <p align="center">
   <img alt="Standings" src="./fig/leaderboard-01.jpg" width="45%">
