@@ -2,7 +2,9 @@
 
 A mobile-friendly app for tracking golf scramble tournaments. Keep track of every shot, see live stats, and compete with other teams in real-time!
 
-![App Preview](screenshots/app-preview.png)
+<p align="center">
+  <img alt="Team Summary" src="./fig/team-summary.jpg" width="45%">
+</p>
 
 ## What is this?
 
