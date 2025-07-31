@@ -28,7 +28,11 @@ After each shot (before on tee shots) you enter:
 - Who's shot you just used
 - Type of shot (drive, approach, putt, etc.)
 
-![Who's Shot](fig/shot-tracking-01.jpg) ![Distance Remaining](fig/shot-tracking-02.jpg)
+<p align="center">
+  <img alt="Who's Shot" src="./fig/shot-tracking-01.jpg" width="45%">
+&nbsp; &nbsp; &nbsp; &nbsp;
+  <img alt="Distance Remaining" src="./fig/shot-tracking-02.jpg" width="45%">
+</p>
 
 ### Holing Out
 If a shot went in, click the hole out button. This will take you to the next hole.
